@@ -1,0 +1,56 @@
+/* Theme includes tailwindcss and all theme extensions */
+@import './lib/styles/theme.css';
+
+/* Global reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  background-color: var(--color-base00);
+  color: var(--color-base05);
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-base01);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-base03);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-base04);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--color-base0D);
+  outline-offset: 2px;
+}
+
+/* Link defaults */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Selection */
+::selection {
+  background-color: var(--color-base0D);
+  color: white;
+}

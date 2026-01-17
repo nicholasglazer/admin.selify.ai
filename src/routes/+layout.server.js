@@ -1,0 +1,74 @@
+import {error} from '@sveltejs/kit';
+
+/** @type {import('./$types').LayoutServerLoad} */
+export const load = async ({locals, cookies}) => {
+  const {session, user, supabase} = locals;
+
+  // Get theme from cookie (set by inline script in app.html)
+  const theme = cookies.get('admin-theme') || 'miozu-dark';
+
+  if (!user) {
+    return {
+      session: null,
+      user: null,
+      teamMember: null,
+      capabilities: [],
+      theme
+    };
+  }
+
+  // Fetch team member data with capabilities
+  const {data: teamMember, error: memberError} = await supabase
+    .from('team_members')
+    .select(
+      `
+      id,
+      user_id,
+      email,
+      personal_email,
+      full_name,
+      role_name,
+      status,
+      custom_capabilities,
+      avatar_url,
+      notes,
+      last_login_at,
+      created_at
+    `
+    )
+    .eq('user_id', user.id)
+    .single();
+
+  if (memberError || !teamMember) {
+    console.error('[Admin Layout] Team member not found:', memberError?.message);
+    throw error(403, {
+      message: 'Access denied. You are not a registered team member.',
+      hint: 'Contact a super admin to get onboarded.'
+    });
+  }
+
+  if (teamMember.status !== 'active') {
+    throw error(403, {
+      message: `Account ${teamMember.status}. Contact admin for assistance.`
+    });
+  }
+
+  // Get capabilities from RPC
+  const {data: capabilities} = await supabase.rpc('get_team_member_capabilities', {
+    p_user_id: user.id
+  });
+
+  // Update last login
+  await supabase
+    .from('team_members')
+    .update({last_login_at: new Date().toISOString()})
+    .eq('id', teamMember.id);
+
+  return {
+    session,
+    user,
+    teamMember,
+    capabilities: capabilities || [],
+    theme
+  };
+};

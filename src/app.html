@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0f19" />
+    <title>Selify Admin</title>
+    <!-- Inline theme script - prevents flash of wrong theme -->
+    <script>
+      (function () {
+        try {
+          // Priority: localStorage > cookie > system preference > default (dark)
+          let theme = localStorage.getItem('admin-theme');
+
+          // Fallback to cookie
+          if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
+            const match = document.cookie.match(/admin-theme=([^;]+)/);
+            theme = match?.[1];
+          }
+
+          // Fallback to system preference
+          if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
+            theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches
+              ? 'miozu-dark'
+              : 'miozu-light';
+          }
+
+          // Default to dark for admin
+          if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
+            theme = 'miozu-dark';
+          }
+
+          // Apply immediately
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.style.colorScheme = theme === 'miozu-dark' ? 'dark' : 'light';
+
+          // Persist
+          localStorage.setItem('admin-theme', theme);
+          document.cookie = `admin-theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+        } catch (e) {
+          // Fallback to dark on error
+          document.documentElement.setAttribute('data-theme', 'miozu-dark');
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>
