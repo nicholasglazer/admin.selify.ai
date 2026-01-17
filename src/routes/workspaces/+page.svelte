@@ -136,13 +136,13 @@
   .page-title {
     font-size: 1.75rem;
     font-weight: 700;
-    color: var(--color-base7);
+    color: var(--color-base07);
     margin: 0;
   }
 
   .page-subtitle {
     font-size: 0.875rem;
-    color: var(--color-base5);
+    color: var(--color-base04);
     margin-top: 0.25rem;
   }
 
@@ -159,10 +159,10 @@
     flex: 1;
     max-width: 400px;
     padding: 0.625rem 1rem;
-    background: var(--color-base1);
+    background: var(--color-base01);
     border: 1px solid var(--color-border);
     border-radius: 0.5rem;
-    color: var(--color-base7);
+    color: var(--color-base07);
     font-size: 0.875rem;
   }
 
@@ -173,10 +173,10 @@
 
   .search-bar button {
     padding: 0.625rem 1.25rem;
-    background: var(--color-base2);
+    background: var(--color-base02);
     border: 1px solid var(--color-border);
     border-radius: 0.5rem;
-    color: var(--color-base7);
+    color: var(--color-base07);
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
@@ -184,11 +184,11 @@
   }
 
   .search-bar button:hover {
-    background: var(--color-base3);
+    background: var(--color-base03);
   }
 
   .table-container {
-    background: var(--color-base1);
+    background: var(--color-base01);
     border: 1px solid var(--color-border);
     border-radius: 0.75rem;
     overflow: hidden;
@@ -204,10 +204,10 @@
     padding: 1rem 1.25rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--color-base5);
+    color: var(--color-base04);
     text-transform: uppercase;
     letter-spacing: 0.025em;
-    background: var(--color-base1);
+    background: var(--color-base01);
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -222,23 +222,23 @@
   }
 
   .data-table tbody tr:hover {
-    background: var(--color-base2)/50;
+    background: color-mix(in srgb, var(--color-base02) 50%, transparent);
   }
 
   .workspace-name {
     font-weight: 600;
-    color: var(--color-base7);
+    color: var(--color-base07);
   }
 
   .workspace-id {
     font-size: 0.75rem;
-    color: var(--color-base5);
+    color: var(--color-base04);
     font-family: monospace;
   }
 
   .owner-email {
     font-size: 0.875rem;
-    color: var(--color-base6);
+    color: var(--color-base05);
   }
 
   .badge {
@@ -252,11 +252,11 @@
 
   .mono {
     font-family: monospace;
-    color: var(--color-base6);
+    color: var(--color-base05);
   }
 
   .text-muted {
-    color: var(--color-base5);
+    color: var(--color-base04);
   }
 
   .action-buttons {
@@ -286,7 +286,7 @@
   .empty-state {
     text-align: center;
     padding: 4rem 2rem;
-    color: var(--color-base5);
+    color: var(--color-base04);
   }
 
   .pagination {
@@ -299,22 +299,22 @@
 
   .page-link {
     padding: 0.5rem 1rem;
-    background: var(--color-base1);
+    background: var(--color-base01);
     border: 1px solid var(--color-border);
     border-radius: 0.5rem;
-    color: var(--color-base6);
+    color: var(--color-base05);
     text-decoration: none;
     font-size: 0.875rem;
     transition: all 0.15s;
   }
 
   .page-link:hover {
-    background: var(--color-base2);
-    color: var(--color-base7);
+    background: var(--color-base02);
+    color: var(--color-base07);
   }
 
   .page-info {
     font-size: 0.875rem;
-    color: var(--color-base5);
+    color: var(--color-base04);
   }
 </style>

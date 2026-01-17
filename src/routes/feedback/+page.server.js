@@ -2,7 +2,8 @@ import {error} from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({locals, parent}) => {
-  const {capabilities, supabase} = await parent();
+  const {capabilities} = await parent();
+  const {supabase} = locals;
 
   // Check capabilities for feedback access
   if (!capabilities?.includes('ops.feedback.view') && !capabilities?.includes('*')) {
