@@ -9,3 +9,4 @@ export {ThemeReactiveState, getThemeState, resetThemeState} from './theme.svelte
 export {ToastReactiveState, getToastState, resetToastState} from './toast.svelte.js';
 export {AdminReactiveState, getAdminState, resetAdminState} from './admin.svelte.js';
 export {PMBoardReactiveState, getPMBoardState, resetPMBoardState} from './pm.svelte.js';
+export {QAReactiveState, getQAState, resetQAState} from './qa.svelte.js';

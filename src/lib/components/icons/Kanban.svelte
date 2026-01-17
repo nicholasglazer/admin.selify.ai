@@ -1,0 +1,19 @@
+<script>
+  let {size = 20, color = 'currentColor', strokeWidth = 2, class: className = ''} = $props();
+</script>
+
+<svg
+  class={className}
+  xmlns="http://www.w3.org/2000/svg"
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke={color}
+  stroke-width={strokeWidth}
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="6" height="14" x="4" y="5" rx="2"></rect>
+  <rect width="6" height="10" x="14" y="7" rx="2"></rect>
+</svg>
