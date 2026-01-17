@@ -20,6 +20,7 @@ export default {
     }),
     alias: {
       $components: 'src/lib/components',
+      $features: 'src/lib/features',
       $lib: 'src/lib',
       $theme: 'src/lib/styles/theme.css'
     }

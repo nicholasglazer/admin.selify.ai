@@ -1,7 +1,7 @@
 <script>
   import '../app.css';
   import {setContext, onMount} from 'svelte';
-  import {Sidebar, Toaster, ThemeToggle} from '$components';
+  import {AdminSidebar, Toaster, ThemeToggle} from '$components';
   import {getThemeState, getAdminState, getToastState} from '$lib/reactiveStates';
 
   let {data, children} = $props();
@@ -35,7 +35,7 @@
 
 <div class="admin-layout">
   {#if teamMember}
-    <Sidebar {teamMember} {capabilities} />
+    <AdminSidebar {teamMember} {capabilities} />
   {/if}
 
   <main class="main-content">

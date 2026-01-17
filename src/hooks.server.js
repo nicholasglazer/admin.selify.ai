@@ -22,6 +22,29 @@ export const handleError = async ({error, event, status, message}) => {
 };
 
 export const handle = async ({event, resolve}) => {
+  // ==========================================================================
+  // Subdomain Routing
+  // webmail.selify.ai -> /webmail routes (internal rewrite, URL stays clean)
+  // ==========================================================================
+  const host = event.request.headers.get('host') || '';
+  const isWebmailSubdomain = host.startsWith('webmail.');
+
+  if (isWebmailSubdomain) {
+    // Mark this as webmail subdomain for templates
+    event.locals.isWebmailSubdomain = true;
+
+    // Rewrite URL to /webmail/* if not already there
+    const url = new URL(event.request.url);
+    if (!url.pathname.startsWith('/webmail')) {
+      // Root of webmail subdomain -> /webmail
+      const newPath = url.pathname === '/' ? '/webmail' : `/webmail${url.pathname}`;
+      url.pathname = newPath;
+
+      // Create new request with rewritten URL
+      event.request = new Request(url.toString(), event.request);
+    }
+  }
+
   // Attach API configuration
   event.locals.apiBaseUrl = env.API_BASE_URL || PUBLIC_SUPABASE_URL;
   event.locals.supabaseAnonKey = PUBLIC_SUPABASE_ANON_KEY;
@@ -84,8 +107,11 @@ export const handle = async ({event, resolve}) => {
   const isApiRoute = pathname.startsWith('/api');
 
   if (!isAuthRoute && !isApiRoute && !user) {
-    // Redirect to dash.selify.ai auth page
-    throw redirect(302, 'https://dash.selify.ai/auth?redirect=admin');
+    // Redirect to dash.selify.ai auth page with proper return_to
+    const returnTo = isWebmailSubdomain
+      ? 'https://webmail.selify.ai/'
+      : 'https://admin.selify.ai/';
+    throw redirect(302, `https://dash.selify.ai/auth?return_to=${encodeURIComponent(returnTo)}`);
   }
 
   return resolve(event, {

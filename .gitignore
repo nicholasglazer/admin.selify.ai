@@ -27,3 +27,9 @@ npm-debug.log*
 # Wrangler
 .wrangler/
 .dev.vars
+
+# Playwright
+playwright-report/
+playwright/.auth/
+test-results/
+!.env.test.example

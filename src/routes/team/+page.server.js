@@ -11,8 +11,9 @@ export const load = async ({locals, parent}) => {
 
   const {supabase} = locals;
 
-  // Fetch all team members
+  // Fetch all team members from internal schema
   const {data: members, error: fetchError} = await supabase
+    .schema('internal')
     .from('team_members')
     .select(
       `
@@ -35,8 +36,12 @@ export const load = async ({locals, parent}) => {
     throw error(500, {message: 'Failed to fetch team members'});
   }
 
-  // Fetch roles for reference
-  const {data: roles} = await supabase.from('team_roles').select('name, display_name, description').order('name');
+  // Fetch roles for reference from internal schema
+  const {data: roles} = await supabase
+    .schema('internal')
+    .from('team_roles')
+    .select('name, display_name, description')
+    .order('name');
 
   return {
     members: members || [],

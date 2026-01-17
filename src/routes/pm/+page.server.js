@@ -5,113 +5,70 @@ export const load = async ({locals, parent}) => {
   const {capabilities} = await parent();
   const {supabase} = locals;
 
-  // Debug: log what we have
-  console.log('[PM Page] capabilities:', capabilities);
-  console.log('[PM Page] supabase client exists:', !!supabase);
-
   // Check capabilities for PM board access
   if (!capabilities?.includes('ops.tasks.view') && !capabilities?.includes('*')) {
     throw error(403, {message: 'Access denied. You need ops.tasks.view capability.'});
   }
 
-  // Fetch tasks from internal schema with team member info
-  let tasks = [];
-  let tasksError = null;
-
-  try {
-    const result = await supabase
-      .schema('internal')
-      .from('tasks')
-      .select(
-        `
-        id,
-        issue_number,
-        title,
-        description,
-        status,
-        priority,
-        issue_type,
-        labels,
-        assignee_id,
-        reporter_id,
-        source,
-        source_id,
-        parent_id,
-        ai_analysis,
-        ai_confidence,
-        ai_automatable,
-        ai_attempts,
-        metadata,
-        created_at,
-        updated_at
+  // Fetch tasks from internal schema
+  const {data: issues, error: tasksError} = await supabase
+    .schema('internal')
+    .from('tasks')
+    .select(
       `
-      )
-      .is('deleted_at', null)
-      .order('updated_at', {ascending: false});
-
-    tasks = result.data;
-    tasksError = result.error;
-    console.log('[PM Page] tasks query result:', {data: tasks?.length, error: tasksError});
-  } catch (e) {
-    console.error('[PM Page] tasks query exception:', e);
-    throw error(500, {message: `Failed to load tasks: ${e.message}`});
-  }
+      id,
+      issue_number,
+      title,
+      description,
+      status,
+      priority,
+      issue_type,
+      assignee_id,
+      reporter_id,
+      labels,
+      story_points,
+      due_date,
+      created_at,
+      updated_at
+    `
+    )
+    .order('updated_at', {ascending: false});
 
   if (tasksError) {
-    console.error('[PM Page] Error fetching tasks:', tasksError);
-    throw error(500, {message: `Failed to load tasks: ${tasksError.message}`});
+    console.error('[PM] Tasks fetch error:', tasksError);
+    throw error(500, {message: 'Failed to load tasks'});
   }
 
-  // Fetch team members for assignee display
+  // Map to expected format for the board
+  const mappedIssues = (issues || []).map((task) => ({
+    ...task,
+    key: `TASK-${task.issue_number}`,
+    type: task.issue_type
+  }));
+
+  // Fetch team members for assignment dropdown
   const {data: teamMembers, error: teamError} = await supabase
     .schema('internal')
     .from('team_members')
-    .select('id, display_name, avatar_url, user_id')
-    .eq('status', 'active');
+    .select('id, full_name, avatar_url, email')
+    .eq('status', 'active')
+    .order('full_name');
 
   if (teamError) {
-    console.error('Error fetching team members:', teamError);
+    console.error('[PM] Team fetch error:', teamError);
   }
 
-  // Create team member lookup
-  const teamLookup = (teamMembers || []).reduce((acc, member) => {
-    acc[member.id] = member;
-    return acc;
-  }, {});
+  // Fetch board summary using RPC function
+  const {data: boardSummary, error: summaryError} = await supabase.rpc('get_board_summary');
 
-  // Transform tasks for the board
-  const issues = (tasks || []).map((task) => ({
-    id: task.id,
-    task_number: task.issue_number,
-    title: task.title,
-    description: task.description || '',
-    status: task.status,
-    priority: task.priority,
-    issue_type: task.issue_type,
-    labels: task.labels || [],
-    assignee_id: task.assignee_id,
-    assignee: task.assignee_id ? teamLookup[task.assignee_id]?.display_name : null,
-    assignee_avatar: task.assignee_id ? teamLookup[task.assignee_id]?.avatar_url : null,
-    reporter_id: task.reporter_id,
-    source: task.source,
-    source_id: task.source_id,
-    parent_id: task.parent_id,
-    ai_analysis: task.ai_analysis,
-    ai_confidence: task.ai_confidence,
-    ai_automatable: task.ai_automatable,
-    ai_attempts: task.ai_attempts,
-    metadata: task.metadata,
-    created_at: task.created_at,
-    updated_at: task.updated_at
-  }));
-
-  // Get board summary for stats
-  const {data: summary} = await supabase.rpc('get_board_summary');
+  if (summaryError) {
+    console.error('[PM] Board summary error:', summaryError);
+  }
 
   return {
-    issues,
+    issues: mappedIssues,
     teamMembers: teamMembers || [],
-    boardSummary: summary || {},
-    columns: null // Will use defaults from reactive state
+    boardSummary: boardSummary || {},
+    columns: null
   };
 };

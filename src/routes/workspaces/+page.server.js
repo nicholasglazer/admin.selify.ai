@@ -15,32 +15,28 @@ export const load = async ({locals, parent, url}) => {
   const limit = 20;
   const offset = (page - 1) * limit;
 
-  // Build query
+  // Build query - fetch workspaces
   let query = supabase
     .from('workspaces')
     .select(
       `
       id,
       name,
-      owner_user_id,
-      subscription_plan,
-      subscription_credits_remaining_micro,
-      payg_balance_micro,
+      slug,
+      type,
+      owner_id,
       created_at,
-      users!workspaces_owner_user_id_fkey (
-        id,
-        email,
-        raw_user_meta_data
-      )
+      updated_at
     `,
       {count: 'exact'}
     )
+    .is('deleted_at', null)
     .order('created_at', {ascending: false})
     .range(offset, offset + limit - 1);
 
   // Add search if provided
   if (search) {
-    query = query.or(`name.ilike.%${search}%,users.email.ilike.%${search}%`);
+    query = query.ilike('name', `%${search}%`);
   }
 
   const {data: workspaces, count, error: fetchError} = await query;
