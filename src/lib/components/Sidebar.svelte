@@ -10,6 +10,7 @@
   // Navigation items
   const navItems = $derived([
     {label: 'Dashboard', href: '/', show: true},
+    {label: 'PM Board', href: '/pm', show: hasCap('ops.tasks.view')},
     {label: 'Team', href: '/team', show: hasCap('team.view')},
     {label: 'Workspaces', href: '/workspaces', show: hasCap('admin.workspaces.view')},
     {label: 'Services', href: '/services', show: hasCap('ops.services.view')},
