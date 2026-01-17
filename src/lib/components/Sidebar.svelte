@@ -1,23 +1,27 @@
 <script>
   import {page} from '$app/stores';
-  import {Badge} from '@miozu/jera';
+  import {Badge, Avatar} from '@miozu/jera';
 
   let {teamMember, capabilities} = $props();
 
-  // Check capability
+  // Check capability - must be called reactively inside $derived
   const hasCap = (cap) => capabilities?.includes(cap) || capabilities?.includes('*');
 
-  // Navigation items
-  const navItems = $derived([
-    {label: 'Dashboard', href: '/', show: true},
-    {label: 'PM Board', href: '/pm', show: hasCap('ops.tasks.view')},
-    {label: 'Feedback', href: '/feedback', show: hasCap('ops.feedback.view')},
-    {label: 'Team', href: '/team', show: hasCap('team.view')},
-    {label: 'Workspaces', href: '/workspaces', show: hasCap('admin.workspaces.view')},
-    {label: 'Services', href: '/services', show: hasCap('ops.services.view')},
-    {label: 'Metrics', href: '/metrics', show: hasCap('ops.metrics.view')},
-    {label: 'Errors', href: '/errors', show: hasCap('ops.errors.view')}
-  ]);
+  // Navigation items - compute show reactively based on capabilities
+  const navItems = $derived.by(() => {
+    const check = (cap) => capabilities?.includes(cap) || capabilities?.includes('*');
+    return [
+      {label: 'Dashboard', href: '/', icon: 'home', show: true},
+      {label: 'PM Board', href: '/pm', icon: 'kanban', show: check('ops.tasks.view')},
+      {label: 'Feedback', href: '/feedback', icon: 'message', show: check('ops.feedback.view')},
+      {label: 'Team', href: '/team', icon: 'users', show: check('team.view')},
+      {label: 'Workspaces', href: '/workspaces', icon: 'building', show: check('admin.workspaces.view')},
+      {label: 'Services', href: '/services', icon: 'server', show: check('ops.services.view')},
+      {label: 'Errors', href: '/errors', icon: 'alert', show: check('ops.errors.view')},
+      {label: 'Logs', href: '/logs', icon: 'terminal', show: check('ops.logs.view')},
+      {label: 'Metrics', href: '/metrics', icon: 'chart', show: check('ops.metrics.view')}
+    ];
+  });
 
   // Role badge variants
   const roleVariants = {
@@ -53,12 +57,14 @@
 
   <div class="sidebar-footer">
     <div class="user-info">
-      <div class="user-avatar">
-        {teamMember.full_name?.charAt(0) || '?'}
-      </div>
+      <Avatar
+        name={teamMember.full_name}
+        src={teamMember.avatar_url}
+        size="md"
+      />
       <div class="user-details">
         <div class="user-name">{teamMember.full_name}</div>
-        <Badge variant={roleVariants[teamMember.role_name] || 'default'} size="xs">
+        <Badge variant={roleVariants[teamMember.role_name] || 'default'} size="sm">
           {teamMember.role_name.replace('_', ' ')}
         </Badge>
       </div>
@@ -110,13 +116,6 @@
 
   .user-info {
     @apply flex items-center gap-3;
-  }
-
-  .user-avatar {
-    @apply w-9 h-9 rounded-lg;
-    @apply bg-base0D text-white;
-    @apply flex items-center justify-center;
-    @apply font-semibold text-sm;
   }
 
   .user-details {
