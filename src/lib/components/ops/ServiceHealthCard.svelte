@@ -7,7 +7,7 @@
    * @prop {boolean} expanded - Whether to show detailed view
    */
 
-  import Badge from '../Badge.svelte';
+  import {Badge} from '@miozu/jera';
   import UptimeBar from './UptimeBar.svelte';
   import ResponseTimeChart from './ResponseTimeChart.svelte';
 

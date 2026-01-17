@@ -1,6 +1,6 @@
 <script>
   import {page} from '$app/stores';
-  import Badge from './Badge.svelte';
+  import {Badge} from '@miozu/jera';
 
   let {teamMember, capabilities} = $props();
 

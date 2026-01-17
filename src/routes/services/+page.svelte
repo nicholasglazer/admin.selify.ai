@@ -1,7 +1,7 @@
 <script>
   import {getContext} from 'svelte';
   import {ServiceHealthCard} from '$lib/components/ops';
-  import Badge from '$lib/components/Badge.svelte';
+  import {Badge} from '$components';
 
   let {data} = $props();
   const {services, historyByService, dashboard} = data;

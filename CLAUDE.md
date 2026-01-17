@@ -135,10 +135,46 @@ The admin dashboard calls the backend admin API:
 
 Uses the same Base16 dark theme as dash.selify.ai:
 
-- Primary: `--color-base0D` (purple)
+- Primary: `--color-base0D` (blue)
 - Success: `--color-base0B` (green)
 - Error: `--color-base08` (red)
-- Background: `--color-base0` (dark gray)
+- Background: `--color-base00` (dark gray)
+
+### Semantic Color Tokens
+
+The theme includes semantic tokens compatible with `@miozu/jera`:
+
+| Token | Maps To | Usage |
+|-------|---------|-------|
+| `--color-bg` | base00 | Page background |
+| `--color-surface` | base01 | Card/panel background |
+| `--color-surface-alt` | base02 | Elevated surfaces |
+| `--color-text` | base05 | Primary text |
+| `--color-text-strong` | base07 | Headings, emphasis |
+| `--color-text-muted` | base04 | Secondary text |
+| `--color-primary` | base0D | Brand/action color |
+| `--color-success` | base0B | Success states |
+| `--color-warning` | base0A | Warning states |
+| `--color-error` | base08 | Error states |
+| `--color-info` | base0C | Info states |
+
+### @miozu/jera Integration
+
+jera components work out-of-the-box with this codebase:
+
+```svelte
+<script>
+  import { Button, Modal, Input, Badge, Toast } from '@miozu/jera';
+</script>
+
+<!-- Works with miozu-dark/miozu-light themes -->
+<Button variant="primary">Action</Button>
+<Badge variant="success">Active</Badge>
+```
+
+**When to use jera vs local components:**
+- Use jera for: Generic UI (Modal, Toast, Tabs, forms)
+- Use local for: Admin-specific UI (Sidebar, ServiceHealthCard)
 
 ## Deployment
 

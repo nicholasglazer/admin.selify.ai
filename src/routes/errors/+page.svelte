@@ -1,7 +1,7 @@
 <script>
   import {goto} from '$app/navigation';
   import {page} from '$app/stores';
-  import Badge from '$lib/components/Badge.svelte';
+  import {Badge} from '$components';
 
   let {data} = $props();
   const {errors, stats, dashboard, services, filters} = data;
