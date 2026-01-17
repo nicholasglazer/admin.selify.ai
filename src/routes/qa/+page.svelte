@@ -6,6 +6,7 @@
   import QADashboard from './QADashboard.svelte';
   import QASpecList from './QASpecList.svelte';
   import QARunList from './QARunList.svelte';
+  import QADocs from './QADocs.svelte';
   import NLTestCreator from './NLTestCreator.svelte';
   import SpecDetailModal from './SpecDetailModal.svelte';
   import RunDetailModal from './RunDetailModal.svelte';
@@ -40,7 +41,8 @@
   const tabs = [
     {id: 'specs', label: 'Test Specs', icon: 'file-code'},
     {id: 'runs', label: 'Test Runs', icon: 'play-circle'},
-    {id: 'coverage', label: 'Coverage', icon: 'grid'}
+    {id: 'coverage', label: 'Coverage', icon: 'grid'},
+    {id: 'docs', label: 'Architecture', icon: 'book'}
   ];
 
   function handleNewSpec() {
@@ -133,6 +135,8 @@
       <QARunList />
     {:else if viewMode === 'coverage'}
       <QADashboard />
+    {:else if viewMode === 'docs'}
+      <QADocs />
     {/if}
   </div>
 

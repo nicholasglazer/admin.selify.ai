@@ -10,6 +10,7 @@
 This is the internal admin dashboard for Selify staff. It provides:
 
 - **AI-First PM Board** - Task management for team ops (`/pm`)
+- **AI-First QA Dashboard** - Playwright test automation with natural language (`/qa`)
 - Team member onboarding (Temporal workflow)
 - Workspace management and billing admin
 - Service health monitoring
@@ -45,6 +46,14 @@ const {data} = await supabase.rpc('internal.get_board_summary');
 | `internal.task_activities` | Full audit trail                    |
 | `internal.ai_audit_log`    | AI action history                   |
 
+### QA Tables (public schema)
+
+| Table              | Purpose                                      |
+| ------------------ | -------------------------------------------- |
+| `qa_test_specs`    | Natural language specs + generated Playwright |
+| `qa_test_runs`     | Test execution sessions with results         |
+| `qa_test_results`  | Individual test outcomes per run             |
+
 **Full docs:** `backend-selify.ai/DATABASE_SCHEMA_DOCUMENTATION.md`
 
 ---
@@ -70,12 +79,12 @@ if (!capabilities?.includes('team.view') && !capabilities?.includes('*')) {
 
 ### Roles and Capabilities
 
-| Role        | Key Capabilities                                              |
-| ----------- | ------------------------------------------------------------- |
-| super_admin | `*` (all)                                                     |
-| developer   | team.view, ops.tasks.\*, ops.logs.view, admin.workspaces.view |
-| ops         | ops.services.\*, ops.tasks.view, ops.metrics.view             |
-| support     | admin.workspaces.view, admin.billing.view                     |
+| Role        | Key Capabilities                                                      |
+| ----------- | --------------------------------------------------------------------- |
+| super_admin | `*` (all)                                                             |
+| developer   | team.view, ops.tasks.\*, ops.qa.\*, ops.logs.view, admin.workspaces.view |
+| ops         | ops.services.\*, ops.tasks.view, ops.qa.view, ops.metrics.view        |
+| support     | admin.workspaces.view, admin.billing.view                             |
 
 ## Project Structure
 
@@ -93,6 +102,16 @@ admin.selify.ai/
 │   │   │   ├── PMColumn.svelte  # Status column with drop zone
 │   │   │   ├── IssueCard.svelte # Draggable task card
 │   │   │   └── IssueModal.svelte # Task detail/edit modal
+│   │   ├── qa/                  # AI-First QA Dashboard
+│   │   │   ├── +page.server.js  # Loads specs, runs, dashboard summary
+│   │   │   ├── +page.svelte     # QA dashboard initialization
+│   │   │   ├── QADashboard.svelte    # Coverage & stats overview
+│   │   │   ├── QASpecList.svelte     # Test specs list with filters
+│   │   │   ├── QARunList.svelte      # Test runs history
+│   │   │   ├── QADocs.svelte         # Architecture documentation
+│   │   │   ├── NLTestCreator.svelte  # Natural language test creator
+│   │   │   ├── SpecDetailModal.svelte # Spec detail/edit modal
+│   │   │   └── RunDetailModal.svelte  # Run results modal
 │   │   ├── team/
 │   │   │   ├── +page.svelte     # Team list
 │   │   │   └── onboard/         # Onboarding form
@@ -101,9 +120,11 @@ admin.selify.ai/
 │   ├── lib/
 │   │   ├── components/          # UI components
 │   │   ├── reactiveStates/
-│   │   │   └── pm.svelte.js     # PMBoardReactiveState (drag-drop, CRUD)
+│   │   │   ├── pm.svelte.js     # PMBoardReactiveState (drag-drop, CRUD)
+│   │   │   └── qa.svelte.js     # QAReactiveState (specs, runs, NL creator)
 │   │   └── utils/               # Helpers
 │   └── hooks.server.js          # SSO cookie setup
+├── supabase/migrations/         # Database migrations
 └── wrangler.toml                # Cloudflare Pages config
 ```
 
@@ -130,6 +151,8 @@ The admin dashboard calls the backend admin API:
 | GET /api/admin/team            | List team members         |
 | GET /api/admin/workspaces      | List workspaces           |
 | GET /api/admin/services/health | Service health status     |
+| POST /api/qa/generate-test     | Generate Playwright from NL |
+| POST /api/qa/execute-run       | Execute test run           |
 
 ## Design System
 
@@ -188,3 +211,212 @@ Required env vars:
 - `PUBLIC_SUPABASE_URL`
 - `PUBLIC_SUPABASE_ANON_KEY`
 - `API_BASE_URL`
+
+---
+
+## QA Module Architecture
+
+The QA dashboard (`/qa`) provides AI-first test automation using Playwright Test Agents.
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     admin.selify.ai/qa                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  Test Specs  │  │  Test Runs   │  │   Coverage   │          │
+│  │    List      │  │   History    │  │   Overview   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│         │                 │                 │                   │
+│         ▼                 ▼                 ▼                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              QAReactiveState (Svelte 5 runes)           │   │
+│  │  - specs[], runs[], dashboardSummary                    │   │
+│  │  - nlCreator state (NL → Playwright)                    │   │
+│  │  - CRUD operations with optimistic updates              │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Backend API Layer                            │
+├─────────────────────────────────────────────────────────────────┤
+│  POST /api/qa/generate-test                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  1. Receive NL spec + target app                        │   │
+│  │  2. Call DeepSeek API with Playwright context           │   │
+│  │  3. Return generated Playwright code                    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  POST /api/qa/execute-run                                       │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  1. Fetch specs for run from database                   │   │
+│  │  2. Invoke Playwright Test Agents                       │   │
+│  │  3. Stream results back, update qa_test_results         │   │
+│  │  4. Apply auto-heals if needed                          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Playwright Test Agents                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
+│  │   Planner   │ →  │  Generator  │ →  │   Healer    │        │
+│  │   Agent     │    │   Agent     │    │   Agent     │        │
+│  └─────────────┘    └─────────────┘    └─────────────┘        │
+│        │                  │                  │                  │
+│        ▼                  ▼                  ▼                  │
+│  Explores app,      Converts plan      Auto-fixes broken       │
+│  generates MD       to Playwright      selectors/timeouts      │
+│  test plan          test files                                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Playwright Test Agents
+
+The system integrates with Playwright's native test agents (released Oct 2025):
+
+| Agent       | Purpose                                           | Trigger                  |
+| ----------- | ------------------------------------------------- | ------------------------ |
+| **Planner** | Explores app, generates markdown test plans       | When creating new specs  |
+| **Generator** | Converts plans to executable Playwright tests   | After NL → code generation |
+| **Healer**  | Auto-fixes broken selectors/timeouts              | When tests fail          |
+
+#### Agent Commands
+
+```bash
+# Initialize agents in your project
+npx playwright init-agents --loop=claude
+
+# Directory structure after init
+tests/
+├── specs/               # Markdown test plans (Planner output)
+│   └── login-flow.md
+├── seed.spec.ts         # Environment setup test
+└── auth/
+    └── login.spec.ts    # Generated Playwright tests
+```
+
+### Natural Language → Playwright Flow
+
+```
+1. QA writes: "User logs in, navigates to wardrobe, uploads image"
+                              │
+                              ▼
+2. DeepSeek API generates Playwright code:
+   ┌─────────────────────────────────────────────────────────┐
+   │  test('user uploads garment to wardrobe', async ({page}) => { │
+   │    await page.goto('/auth/login');                       │
+   │    await page.fill('[name="email"]', 'test@example.com');│
+   │    await page.fill('[name="password"]', 'password123');  │
+   │    await page.click('button[type="submit"]');            │
+   │    await page.waitForURL('/dashboard');                  │
+   │    await page.click('text=Wardrobe');                    │
+   │    await page.setInputFiles('input[type="file"]', ...);  │
+   │    await expect(page.locator('.garment-grid')).toBeVisible(); │
+   │  });                                                     │
+   └─────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+3. Saved to qa_test_specs with status='draft'
+                              │
+                              ▼
+4. QA reviews, activates → status='active'
+                              │
+                              ▼
+5. Test runs execute via Playwright, results stored
+```
+
+### Auto-Healing
+
+When a test fails due to selector changes:
+
+```
+1. Test fails: "Unable to find element [data-testid='old-button']"
+                              │
+                              ▼
+2. Healer Agent activates:
+   - Analyzes DOM changes
+   - Finds new selector via visual/semantic matching
+   - Updates: [data-testid='old-button'] → [data-testid='new-button']
+                              │
+                              ▼
+3. Test re-runs with new selector
+                              │
+                              ▼
+4. If passes:
+   - Result marked as 'healed'
+   - Heal logged to spec.heal_history
+   - Spec's heal_count incremented
+```
+
+### Database Schema
+
+```sql
+-- Test specifications (NL + generated code)
+qa_test_specs (
+  id, spec_number, name, nl_spec,
+  target_app, category, tags[],
+  generated_code, generated_by, generated_at,
+  status (draft|active|disabled|archived),
+  heal_count, heal_history[], flaky_score,
+  last_run_at, created_at
+)
+
+-- Test execution sessions
+qa_test_runs (
+  id, run_number, status (queued|running|passed|failed|healed),
+  target_app, environment,
+  total_specs, passed_count, failed_count, healed_count,
+  duration_ms, report_url, trace_url,
+  triggered_by, trigger_type, git_branch, git_commit
+)
+
+-- Individual test results
+qa_test_results (
+  id, run_id, spec_id, status,
+  duration_ms, error_message, error_screenshot_url,
+  was_healed, heal_reason, original_code, healed_code,
+  visual_diff_url, visual_diff_percent
+)
+```
+
+### Key RPC Functions
+
+```javascript
+// Get dashboard summary (stats, recent runs, flaky tests)
+const {data} = await supabase.rpc('qa_get_dashboard_summary');
+
+// Get spec with recent results
+const {data} = await supabase.rpc('qa_get_spec_details', {p_spec_id: specId});
+```
+
+### Capabilities Required
+
+| Capability      | Allows                                |
+| --------------- | ------------------------------------- |
+| `ops.qa.view`   | View specs, runs, dashboard           |
+| `ops.qa.create` | Create/edit specs                     |
+| `ops.qa.run`    | Execute test runs                     |
+| `ops.qa.admin`  | Delete specs, manage settings         |
+
+### Future: Temporal Integration
+
+For scheduled/distributed test runs, integrate with Temporal:
+
+```javascript
+// Temporal workflow for scheduled test runs
+workflow ScheduledTestRun {
+  activities:
+    - FetchActiveSpecs()
+    - ExecutePlaywrightRun()
+    - ProcessResults()
+    - NotifyOnFailure()
+
+  schedule: "0 */4 * * *"  // Every 4 hours
+}
+```
