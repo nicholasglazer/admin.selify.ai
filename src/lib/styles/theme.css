@@ -35,36 +35,6 @@
   /* Border utilities */
   --color-border: #273244;
   --color-border-light: #1f2a3a;
-  --color-border-muted: var(--color-base02);
-
-  /* ========================================
-   * SEMANTIC COLOR TOKENS (@miozu/jera compatible)
-   * These enable jera components to work seamlessly
-   * ======================================== */
-
-  /* Backgrounds */
-  --color-bg: var(--color-base00);
-  --color-surface: var(--color-base01);
-  --color-surface-alt: var(--color-base02);
-  --color-hover: var(--color-base02);
-  --color-surface-hover: var(--color-base02);
-
-  /* Foregrounds */
-  --color-text: var(--color-base05);
-  --color-text-strong: var(--color-base07);
-  --color-text-muted: var(--color-base04);
-  --color-text-subtle: var(--color-base03);
-
-  /* Brand */
-  --color-primary: var(--color-base0D);
-  --color-secondary: var(--color-base0C);
-  --color-accent: var(--color-base0E);
-
-  /* States */
-  --color-success: var(--color-base0B);
-  --color-warning: var(--color-base0A);
-  --color-error: var(--color-base08);
-  --color-info: var(--color-base0C);
 
   /* Shadows for dark mode */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
@@ -99,36 +69,6 @@
   /* Border utilities */
   --color-border: #e2e8f0;
   --color-border-light: #f1f5f9;
-  --color-border-muted: var(--color-base02);
-
-  /* ========================================
-   * SEMANTIC COLOR TOKENS (@miozu/jera compatible)
-   * Same structure as dark theme
-   * ======================================== */
-
-  /* Backgrounds */
-  --color-bg: var(--color-base00);
-  --color-surface: var(--color-base01);
-  --color-surface-alt: var(--color-base02);
-  --color-hover: var(--color-base02);
-  --color-surface-hover: var(--color-base02);
-
-  /* Foregrounds */
-  --color-text: var(--color-base05);
-  --color-text-strong: var(--color-base07);
-  --color-text-muted: var(--color-base04);
-  --color-text-subtle: var(--color-base03);
-
-  /* Brand */
-  --color-primary: var(--color-base0D);
-  --color-secondary: var(--color-base0C);
-  --color-accent: var(--color-base0E);
-
-  /* States */
-  --color-success: var(--color-base0B);
-  --color-warning: var(--color-base0A);
-  --color-error: var(--color-base08);
-  --color-info: var(--color-base0C);
 
   /* Shadows for light mode */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -161,38 +101,8 @@
   /* Border reference */
   --color-border: var(--color-border);
   --color-border-light: var(--color-border-light);
-  --color-border-muted: var(--color-border-muted);
 
-  /* ========================================
-   * SEMANTIC TOKENS (@miozu/jera compatible)
-   * Enables Tailwind classes like bg-surface, text-primary
-   * ======================================== */
-
-  /* Backgrounds */
-  --color-bg: var(--color-bg);
-  --color-surface: var(--color-surface);
-  --color-surface-alt: var(--color-surface-alt);
-  --color-hover: var(--color-hover);
-  --color-surface-hover: var(--color-surface-hover);
-
-  /* Foregrounds */
-  --color-text: var(--color-text);
-  --color-text-strong: var(--color-text-strong);
-  --color-text-muted: var(--color-text-muted);
-  --color-text-subtle: var(--color-text-subtle);
-
-  /* Brand */
-  --color-primary: var(--color-primary);
-  --color-secondary: var(--color-secondary);
-  --color-accent: var(--color-accent);
-
-  /* States */
-  --color-success: var(--color-success);
-  --color-warning: var(--color-warning);
-  --color-error: var(--color-error);
-  --color-info: var(--color-info);
-
-  /* Legacy non-prefixed aliases for compatibility */
+  /* Non-prefixed aliases for Tailwind utilities */
   --base00: var(--color-base00);
   --base01: var(--color-base01);
   --base02: var(--color-base02);

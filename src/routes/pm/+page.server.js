@@ -5,45 +5,61 @@ export const load = async ({locals, parent}) => {
   const {capabilities} = await parent();
   const {supabase} = locals;
 
+  // Debug: log what we have
+  console.log('[PM Page] capabilities:', capabilities);
+  console.log('[PM Page] supabase client exists:', !!supabase);
+
   // Check capabilities for PM board access
   if (!capabilities?.includes('ops.tasks.view') && !capabilities?.includes('*')) {
     throw error(403, {message: 'Access denied. You need ops.tasks.view capability.'});
   }
 
   // Fetch tasks from internal schema with team member info
-  const {data: tasks, error: tasksError} = await supabase
-    .schema('internal')
-    .from('tasks')
-    .select(
+  let tasks = [];
+  let tasksError = null;
+
+  try {
+    const result = await supabase
+      .schema('internal')
+      .from('tasks')
+      .select(
+        `
+        id,
+        issue_number,
+        title,
+        description,
+        status,
+        priority,
+        issue_type,
+        labels,
+        assignee_id,
+        reporter_id,
+        source,
+        source_id,
+        parent_id,
+        ai_analysis,
+        ai_confidence,
+        ai_automatable,
+        ai_attempts,
+        metadata,
+        created_at,
+        updated_at
       `
-      id,
-      issue_number,
-      title,
-      description,
-      status,
-      priority,
-      issue_type,
-      labels,
-      assignee_id,
-      reporter_id,
-      source,
-      source_id,
-      parent_id,
-      ai_analysis,
-      ai_confidence,
-      ai_automatable,
-      ai_attempts,
-      metadata,
-      created_at,
-      updated_at
-    `
-    )
-    .is('deleted_at', null)
-    .order('updated_at', {ascending: false});
+      )
+      .is('deleted_at', null)
+      .order('updated_at', {ascending: false});
+
+    tasks = result.data;
+    tasksError = result.error;
+    console.log('[PM Page] tasks query result:', {data: tasks?.length, error: tasksError});
+  } catch (e) {
+    console.error('[PM Page] tasks query exception:', e);
+    throw error(500, {message: `Failed to load tasks: ${e.message}`});
+  }
 
   if (tasksError) {
-    console.error('Error fetching tasks:', tasksError);
-    throw error(500, {message: 'Failed to load tasks'});
+    console.error('[PM Page] Error fetching tasks:', tasksError);
+    throw error(500, {message: `Failed to load tasks: ${tasksError.message}`});
   }
 
   // Fetch team members for assignee display
