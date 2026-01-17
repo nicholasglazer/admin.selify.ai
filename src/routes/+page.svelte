@@ -13,8 +13,20 @@
 
   const stats = [
     {label: 'Team', value: '-', href: '/team', show: adminState.hasCap('team.view'), variant: 'primary'},
-    {label: 'Workspaces', value: '-', href: '/workspaces', show: adminState.hasCap('admin.workspaces.view'), variant: 'success'},
-    {label: 'Services', value: 'Healthy', href: '/services', show: adminState.hasCap('ops.services.view'), variant: 'success'},
+    {
+      label: 'Workspaces',
+      value: '-',
+      href: '/workspaces',
+      show: adminState.hasCap('admin.workspaces.view'),
+      variant: 'success'
+    },
+    {
+      label: 'Services',
+      value: 'Healthy',
+      href: '/services',
+      show: adminState.hasCap('ops.services.view'),
+      variant: 'success'
+    },
     {label: 'Errors', value: '0', href: '/errors', show: adminState.hasCap('ops.errors.view'), variant: 'default'}
   ];
 
@@ -30,13 +42,10 @@
   <title>Dashboard | Selify Admin</title>
 </svelte:head>
 
-<PageHeader
-  title="Dashboard"
-  subtitle="Welcome back, {teamMember?.full_name?.split(' ')[0] || 'Admin'}"
-/>
+<PageHeader title="Dashboard" subtitle="Welcome back, {teamMember?.full_name?.split(' ')[0] || 'Admin'}" />
 
 <div class="stats-grid">
-  {#each stats.filter(s => s.show) as stat}
+  {#each stats.filter((s) => s.show) as stat}
     <a href={stat.href} class="stat-card">
       <div class="stat-label">{stat.label}</div>
       <div class="stat-value">{stat.value}</div>
@@ -47,7 +56,7 @@
 <section class="section">
   <h2 class="section-title">Quick Actions</h2>
   <div class="actions-grid">
-    {#each quickActions.filter(a => a.show) as action}
+    {#each quickActions.filter((a) => a.show) as action}
       <Button href={action.href} variant="secondary" class="action-btn">
         {action.label}
       </Button>

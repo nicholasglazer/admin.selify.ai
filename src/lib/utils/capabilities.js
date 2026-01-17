@@ -14,7 +14,7 @@ export function hasCapability(capabilities, cap) {
 export function hasAnyCapability(capabilities, caps) {
   if (!capabilities || !Array.isArray(capabilities)) return false;
   if (capabilities.includes('*')) return true;
-  return caps.some(cap => capabilities.includes(cap));
+  return caps.some((cap) => capabilities.includes(cap));
 }
 
 /**
@@ -23,5 +23,5 @@ export function hasAnyCapability(capabilities, caps) {
 export function hasAllCapabilities(capabilities, caps) {
   if (!capabilities || !Array.isArray(capabilities)) return false;
   if (capabilities.includes('*')) return true;
-  return caps.every(cap => capabilities.includes(cap));
+  return caps.every((cap) => capabilities.includes(cap));
 }

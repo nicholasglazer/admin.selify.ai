@@ -12,17 +12,7 @@
   } = $props();
 </script>
 
-<input
-  class="input {className}"
-  bind:value
-  {type}
-  {placeholder}
-  {disabled}
-  {required}
-  {id}
-  {name}
-  {...rest}
-/>
+<input class="input {className}" bind:value {type} {placeholder} {disabled} {required} {id} {name} {...rest} />
 
 <style lang="postcss">
   @reference '$theme';

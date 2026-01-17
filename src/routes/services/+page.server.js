@@ -10,43 +10,59 @@ export const load = async ({locals, parent, fetch}) => {
     throw error(403, {message: 'Access denied. Missing ops.services.view capability.'});
   }
 
-  // Service health checks
-  const services = [
-    {name: 'agent-api', url: 'http://localhost:8001/health', type: 'internal'},
-    {name: 'inference-api', url: 'http://localhost:3008/health', type: 'internal'},
-    {name: 'smart-bot', url: 'http://localhost:8000/health', type: 'internal'},
-    {name: 'shopify-sync', url: 'http://localhost:3006/health', type: 'internal'},
-    {name: 'stripe-webhooks', url: 'http://localhost:3010/health', type: 'internal'}
-  ];
+  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
+  const headers = {
+    Authorization: `Bearer ${locals.session?.access_token}`,
+    'Content-Type': 'application/json'
+  };
 
-  // Check each service (in production, this would call the admin API)
-  const healthResults = await Promise.all(
-    services.map(async service => {
-      try {
-        // In production, call the admin API endpoint instead
-        const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
-        const response = await fetch(`${apiBaseUrl}/api/admin/services/health`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${locals.session?.access_token}`
-          }
-        });
+  // Fetch services health and history in parallel
+  const [healthResponse, historyResponse, dashboardResponse] = await Promise.all([
+    fetch(`${apiBaseUrl}/api/ops/health`, {headers}).catch(() => null),
+    fetch(`${apiBaseUrl}/api/ops/health/history?hours=24&bucket_minutes=5`, {headers}).catch(() => null),
+    fetch(`${apiBaseUrl}/api/ops/dashboard`, {headers}).catch(() => null)
+  ]);
 
-        if (response.ok) {
-          const data = await response.json();
-          return data.services || [];
-        }
-        return services.map(s => ({...s, status: 'unknown', latency: null}));
-      } catch (err) {
-        return services.map(s => ({...s, status: 'unknown', latency: null, error: err.message}));
-      }
-    })
-  );
+  // Parse responses
+  let services = [];
+  let history = [];
+  let dashboard = null;
 
-  // Flatten results
-  const flatResults = healthResults.flat();
+  if (healthResponse?.ok) {
+    services = await healthResponse.json();
+  }
+
+  if (historyResponse?.ok) {
+    history = await historyResponse.json();
+  }
+
+  if (dashboardResponse?.ok) {
+    dashboard = await dashboardResponse.json();
+  }
+
+  // Group history by service
+  const historyByService = history.reduce((acc, h) => {
+    if (!acc[h.service_name]) {
+      acc[h.service_name] = [];
+    }
+    acc[h.service_name].push(h);
+    return acc;
+  }, {});
+
+  // Fallback services if API not available
+  if (services.length === 0) {
+    services = [
+      {name: 'kong', display_name: 'Kong API Gateway', status: 'unknown'},
+      {name: 'inference-api', display_name: 'Inference API', status: 'unknown'},
+      {name: 'agent-api', display_name: 'Agent API', status: 'unknown'},
+      {name: 'temporal-server', display_name: 'Temporal Server', status: 'unknown'},
+      {name: 'supabase-db', display_name: 'PostgreSQL', status: 'unknown'}
+    ];
+  }
 
   return {
-    services: flatResults.length > 0 ? flatResults : services.map(s => ({...s, status: 'unknown'}))
+    services,
+    historyByService,
+    dashboard
   };
 };

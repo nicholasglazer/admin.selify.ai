@@ -12,6 +12,10 @@
   let description = $state(issue.description);
   let priority = $state(issue.priority);
   let status = $state(issue.status);
+  let assigneeId = $state(issue.assignee_id || '');
+  let labels = $state([...(issue.labels || [])]);
+  let newLabel = $state('');
+  let isSaving = $state(false);
 
   // Priority options
   const priorities = [
@@ -21,11 +25,24 @@
     {value: 'low', label: 'Low', color: 'base0B'}
   ];
 
+  // Issue type options
+  const issueTypes = [
+    {value: 'bug', label: '🐛 Bug'},
+    {value: 'feature', label: '✨ Feature'},
+    {value: 'task', label: '📋 Task'},
+    {value: 'improvement', label: '🔧 Improvement'}
+  ];
+
+  let issueType = $state(issue.issue_type || 'task');
+
   // Status options (columns)
-  const statuses = pmState.columns.map(c => ({
+  const statuses = pmState.columns.map((c) => ({
     value: c.id,
     label: c.name
   }));
+
+  // Team members for assignee dropdown
+  let teamMembers = $derived(pmState.teamMembers || []);
 
   // Format date
   function formatDate(dateStr) {
@@ -38,29 +55,67 @@
     });
   }
 
+  // Add label
+  function addLabel() {
+    const label = newLabel.trim().toLowerCase();
+    if (label && !labels.includes(label)) {
+      labels = [...labels, label];
+      newLabel = '';
+    }
+  }
+
+  // Remove label
+  function removeLabel(labelToRemove) {
+    labels = labels.filter((l) => l !== labelToRemove);
+  }
+
+  // Handle label input keydown
+  function handleLabelKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addLabel();
+    }
+  }
+
   // Save changes
-  function handleSave() {
-    pmState.updateIssue(issue.id, {
-      title,
-      description,
-      priority,
-      status
-    });
+  async function handleSave() {
+    isSaving = true;
 
-    toastState?.show({
-      title: 'Issue Updated',
-      message: 'Changes saved successfully',
-      type: 'success',
-      duration: 3000
-    });
+    try {
+      await pmState.updateIssue(issue.id, {
+        title,
+        description,
+        priority,
+        status,
+        issue_type: issueType,
+        assignee_id: assigneeId || null,
+        labels
+      });
 
-    onClose();
+      toastState?.show({
+        title: 'Task Updated',
+        message: 'Changes saved successfully',
+        type: 'success',
+        duration: 3000
+      });
+
+      onClose();
+    } catch (err) {
+      toastState?.show({
+        title: 'Save Failed',
+        message: err.message || 'Failed to save changes',
+        type: 'error',
+        duration: 5000
+      });
+    } finally {
+      isSaving = false;
+    }
   }
 
   // Delete issue
-  function handleDelete() {
-    if (confirm('Are you sure you want to delete this issue?')) {
-      pmState.deleteIssue(issue.id);
+  async function handleDelete() {
+    if (confirm('Are you sure you want to delete this task?')) {
+      await pmState.deleteIssue(issue.id);
       onClose();
     }
   }
@@ -74,22 +129,31 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="modal-backdrop" onclick={onClose} role="presentation">
-  <div class="modal" onclick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+  <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
     <div class="modal-header">
       <div class="modal-title-row">
-        <input
-          type="text"
-          class="title-input"
-          bind:value={title}
-          placeholder="Issue title"
-        />
+        <input type="text" class="title-input" bind:value={title} placeholder="Task title" />
         <button class="close-btn" onclick={onClose}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6 6 18M6 6l12 12"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
       <div class="modal-meta">
+        {#if issue.task_number}
+          <span class="task-number">#{issue.task_number}</span>
+          <span class="meta-separator">|</span>
+        {/if}
         <span class="meta-item">Created {formatDate(issue.created_at)}</span>
         <span class="meta-separator">|</span>
         <span class="meta-item">Updated {formatDate(issue.updated_at)}</span>
@@ -120,43 +184,67 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Description</label>
-        <textarea
-          bind:value={description}
-          placeholder="Add a description..."
-          rows="6"
-        ></textarea>
-      </div>
-
-      {#if issue.labels?.length > 0}
+      <div class="form-row">
         <div class="form-group">
-          <label>Labels</label>
-          <div class="labels-display">
-            {#each issue.labels as label}
-              <span class="label">{label}</span>
+          <label>Type</label>
+          <select bind:value={issueType}>
+            {#each issueTypes as t}
+              <option value={t.value}>{t.label}</option>
             {/each}
-          </div>
+          </select>
         </div>
-      {/if}
 
-      {#if issue.assignee}
         <div class="form-group">
           <label>Assignee</label>
-          <div class="assignee-display">
-            {#if issue.assignee === 'ai-agent'}
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 8V4H8"/>
-                <rect width="16" height="12" x="4" y="8" rx="2"/>
-                <path d="M2 14h2"/>
-                <path d="M20 14h2"/>
-                <path d="M15 13v2"/>
-                <path d="M9 13v2"/>
-              </svg>
-              <span>AI Agent</span>
-            {:else}
-              <span>{issue.assignee}</span>
-            {/if}
+          <select bind:value={assigneeId}>
+            <option value="">Unassigned</option>
+            {#each teamMembers as member}
+              <option value={member.id}>{member.display_name || member.full_name || member.email}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <textarea bind:value={description} placeholder="Add a description..." rows="6"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Labels</label>
+        <div class="labels-container">
+          <div class="labels-display">
+            {#each labels as label}
+              <span class="label">
+                {label}
+                <button class="label-remove" onclick={() => removeLabel(label)}>×</button>
+              </span>
+            {/each}
+          </div>
+          <div class="label-input-row">
+            <input
+              type="text"
+              class="label-input"
+              bind:value={newLabel}
+              placeholder="Add label..."
+              onkeydown={handleLabelKeydown}
+            />
+            <button class="add-label-btn" onclick={addLabel} disabled={!newLabel.trim()}> Add </button>
+          </div>
+        </div>
+      </div>
+
+      {#if issue.ai_analysis}
+        <div class="form-group">
+          <label>AI Analysis</label>
+          <div class="ai-analysis">
+            <div class="ai-confidence">
+              Confidence: <strong>{Math.round((issue.ai_confidence || 0) * 100)}%</strong>
+              {#if issue.ai_automatable}
+                <span class="automatable-badge">Automatable</span>
+              {/if}
+            </div>
+            <pre>{JSON.stringify(issue.ai_analysis, null, 2)}</pre>
           </div>
         </div>
       {/if}
@@ -164,16 +252,28 @@
 
     <div class="modal-footer">
       <button class="btn-delete" onclick={handleDelete}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 6h18"/>
-          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
         </svg>
         Delete
       </button>
       <div class="footer-actions">
         <Button variant="secondary" onclick={onClose}>Cancel</Button>
-        <Button variant="primary" onclick={handleSave}>Save Changes</Button>
+        <Button variant="primary" onclick={handleSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </Button>
       </div>
     </div>
   </div>
@@ -190,8 +290,12 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .modal {
@@ -231,11 +335,15 @@
   .close-btn {
     @apply p-1 rounded hover:bg-base02;
     @apply text-base04 hover:text-base05;
-    @apply transition-colors;
+    @apply transition-colors cursor-pointer;
   }
 
   .modal-meta {
     @apply flex items-center gap-2 mt-2 text-xs text-base04;
+  }
+
+  .task-number {
+    @apply font-mono text-base05;
   }
 
   .meta-separator {
@@ -277,24 +385,62 @@
     @apply resize-none;
   }
 
+  .labels-container {
+    @apply space-y-2;
+  }
+
   .labels-display {
-    @apply flex flex-wrap gap-1;
+    @apply flex flex-wrap gap-1 min-h-[28px];
   }
 
   .label {
     @apply text-xs px-2 py-1 rounded;
     @apply bg-base02 text-base05;
     @apply font-medium;
+    @apply flex items-center gap-1;
   }
 
-  .assignee-display {
-    @apply flex items-center gap-2;
-    @apply px-3 py-2 rounded-lg bg-base00 border border-border;
+  .label-remove {
+    @apply text-base04 hover:text-base08;
+    @apply cursor-pointer bg-transparent border-none;
+    @apply text-sm leading-none;
+  }
+
+  .label-input-row {
+    @apply flex gap-2;
+  }
+
+  .label-input {
+    @apply flex-1 px-3 py-1.5 rounded-lg;
+    @apply bg-base00 border border-border;
     @apply text-sm text-base06;
+    @apply outline-none focus:border-base0D;
   }
 
-  .assignee-display svg {
-    @apply text-base0E;
+  .add-label-btn {
+    @apply px-3 py-1.5 rounded-lg;
+    @apply bg-base02 text-base05 text-sm;
+    @apply hover:bg-base03 cursor-pointer;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-colors;
+  }
+
+  .ai-analysis {
+    @apply bg-base00 border border-border rounded-lg p-3;
+  }
+
+  .ai-confidence {
+    @apply text-sm text-base05 mb-2;
+  }
+
+  .automatable-badge {
+    @apply ml-2 px-2 py-0.5 rounded-full;
+    @apply bg-base0B/15 text-base0B text-xs;
+  }
+
+  .ai-analysis pre {
+    @apply text-xs text-base04 whitespace-pre-wrap;
+    @apply max-h-32 overflow-auto;
   }
 
   .modal-footer {
@@ -306,7 +452,7 @@
     @apply flex items-center gap-1.5 px-3 py-2 rounded-lg;
     @apply text-sm font-medium text-base08;
     @apply bg-base08/10 hover:bg-base08/20;
-    @apply transition-colors;
+    @apply transition-colors cursor-pointer;
   }
 
   .footer-actions {

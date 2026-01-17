@@ -72,7 +72,7 @@ export class AdminReactiveState {
     const name = this.teamMember?.full_name || '?';
     return name
       .split(' ')
-      .map(n => n[0])
+      .map((n) => n[0])
       .slice(0, 2)
       .join('')
       .toUpperCase();

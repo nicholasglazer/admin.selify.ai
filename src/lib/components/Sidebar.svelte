@@ -5,12 +5,13 @@
   let {teamMember, capabilities} = $props();
 
   // Check capability
-  const hasCap = cap => capabilities?.includes(cap) || capabilities?.includes('*');
+  const hasCap = (cap) => capabilities?.includes(cap) || capabilities?.includes('*');
 
   // Navigation items
   const navItems = $derived([
     {label: 'Dashboard', href: '/', show: true},
     {label: 'PM Board', href: '/pm', show: hasCap('ops.tasks.view')},
+    {label: 'Feedback', href: '/feedback', show: hasCap('ops.feedback.view')},
     {label: 'Team', href: '/team', show: hasCap('team.view')},
     {label: 'Workspaces', href: '/workspaces', show: hasCap('admin.workspaces.view')},
     {label: 'Services', href: '/services', show: hasCap('ops.services.view')},
@@ -27,7 +28,7 @@
   };
 
   // Check if current path matches
-  const isActive = href => {
+  const isActive = (href) => {
     const pathname = $page.url.pathname;
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
@@ -43,7 +44,7 @@
   </div>
 
   <nav class="nav">
-    {#each navItems.filter(i => i.show) as item}
+    {#each navItems.filter((i) => i.show) as item}
       <a href={item.href} class="nav-item" class:active={isActive(item.href)}>
         {item.label}
       </a>

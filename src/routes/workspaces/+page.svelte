@@ -16,7 +16,7 @@
 
   // Subscription plan colors
   const planColors = {
-    free: 'bg-base3/50 text-base5',
+    free: 'bg-base03/50 text-base05',
     starter: 'bg-base0B/20 text-base0B',
     pro: 'bg-base0D/20 text-base0D',
     enterprise: 'bg-base0E/20 text-base0E'

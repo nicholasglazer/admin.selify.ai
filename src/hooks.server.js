@@ -30,7 +30,7 @@ export const handle = async ({event, resolve}) => {
   event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll: () => event.cookies.getAll(),
-      setAll: cookiesToSet => {
+      setAll: (cookiesToSet) => {
         cookiesToSet.forEach(({name, value, options}) => {
           // CRITICAL: Same domain as dash.selify.ai for shared SSO
           const cookieOptions = {

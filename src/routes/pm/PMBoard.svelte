@@ -26,33 +26,60 @@
   <!-- Search and filters bar -->
   <div class="board-toolbar">
     <div class="search-box">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <path d="m21 21-4.3-4.3"/>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
       </svg>
-      <input
-        type="text"
-        placeholder="Search issues..."
-        value={searchQuery}
-        oninput={handleSearch}
-      />
+      <input type="text" placeholder="Search issues..." value={searchQuery} oninput={handleSearch} />
       {#if searchQuery}
         <button class="clear-search" onclick={clearSearch}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6 6 18M6 6l12 12"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
       {/if}
     </div>
 
     <div class="filter-chips">
-      <button class="filter-chip" class:active={pmState.filters.priority === 'critical'} onclick={() => pmState.setFilter('priority', pmState.filters.priority === 'critical' ? null : 'critical')}>
+      <button
+        class="filter-chip"
+        class:active={pmState.filters.priority === 'critical'}
+        onclick={() => pmState.setFilter('priority', pmState.filters.priority === 'critical' ? null : 'critical')}
+      >
         Critical
       </button>
-      <button class="filter-chip" class:active={pmState.filters.priority === 'high'} onclick={() => pmState.setFilter('priority', pmState.filters.priority === 'high' ? null : 'high')}>
+      <button
+        class="filter-chip"
+        class:active={pmState.filters.priority === 'high'}
+        onclick={() => pmState.setFilter('priority', pmState.filters.priority === 'high' ? null : 'high')}
+      >
         High Priority
       </button>
-      <button class="filter-chip" class:active={pmState.filters.assignee === 'ai-agent'} onclick={() => pmState.setFilter('assignee', pmState.filters.assignee === 'ai-agent' ? null : 'ai-agent')}>
+      <button
+        class="filter-chip"
+        class:active={pmState.filters.assignee === 'ai-agent'}
+        onclick={() => pmState.setFilter('assignee', pmState.filters.assignee === 'ai-agent' ? null : 'ai-agent')}
+      >
         AI Assigned
       </button>
     </div>
@@ -61,10 +88,7 @@
   <!-- Kanban columns -->
   <div class="board-columns">
     {#each columns as column (column.id)}
-      <PMColumn
-        {column}
-        issues={issuesByColumn[column.id] || []}
-      />
+      <PMColumn {column} issues={issuesByColumn[column.id] || []} />
     {/each}
   </div>
 </div>

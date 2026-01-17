@@ -52,13 +52,13 @@
 
 ### 1. Issue Sources (Inputs)
 
-| Source | Trigger | Data | Destination |
-|--------|---------|------|-------------|
-| **User Feedback** | Feedback modal submit | title, description, screenshot, url | PM Board → Backlog |
-| **Service Errors** | SigNoz alert threshold | error trace, service, timestamp | PM Board → Backlog (priority: critical) |
-| **Manual PM Tasks** | PM creates in admin UI | title, description, labels | PM Board → Backlog |
-| **Gitea Issues** | External/webhook | issue data, repo, labels | PM Board → Backlog |
-| **Scheduled Audits** | Temporal cron | audit type, findings | PM Board → Backlog |
+| Source               | Trigger                | Data                                | Destination                             |
+| -------------------- | ---------------------- | ----------------------------------- | --------------------------------------- |
+| **User Feedback**    | Feedback modal submit  | title, description, screenshot, url | PM Board → Backlog                      |
+| **Service Errors**   | SigNoz alert threshold | error trace, service, timestamp     | PM Board → Backlog (priority: critical) |
+| **Manual PM Tasks**  | PM creates in admin UI | title, description, labels          | PM Board → Backlog                      |
+| **Gitea Issues**     | External/webhook       | issue data, repo, labels            | PM Board → Backlog                      |
+| **Scheduled Audits** | Temporal cron          | audit type, findings                | PM Board → Backlog                      |
 
 ### 2. Issue Processing (AI Queue)
 
@@ -100,6 +100,7 @@ When issue reaches **Review**:
 ### 4. Auto Deployment
 
 After approval:
+
 ```bash
 # Triggered by Gitea webhook or manual
 source ~/.cloudflare_env && pnpm build && wrangler pages deploy ...
@@ -138,7 +139,7 @@ async function submitFeedback(feedback) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${serviceToken}`
+      Authorization: `Bearer ${serviceToken}`
     },
     body: JSON.stringify({
       title: `[Feedback] ${feedback.title}`,
@@ -202,7 +203,7 @@ rules:
     labels:
       severity: critical
     annotations:
-      summary: "High error rate in {{ $labels.service }}"
+      summary: 'High error rate in {{ $labels.service }}'
 
   - alert: ServiceDown
     expr: up == 0
@@ -219,24 +220,22 @@ export async function POST({request, locals}) {
   const alert = await request.json();
 
   // Create PM issue from alert
-  await locals.supabase
-    .from('pm_issues')
-    .insert({
-      title: `[Alert] ${alert.annotations.summary}`,
-      description: `
+  await locals.supabase.from('pm_issues').insert({
+    title: `[Alert] ${alert.annotations.summary}`,
+    description: `
 Service: ${alert.labels.service}
 Severity: ${alert.labels.severity}
 Time: ${alert.startsAt}
 
 ${alert.annotations.description || ''}
       `.trim(),
-      status: 'backlog',
-      priority: alert.labels.severity === 'critical' ? 'critical' : 'high',
-      labels: ['alert', 'auto-generated', alert.labels.service],
-      source: 'signoz',
-      source_id: alert.fingerprint,
-      metadata: alert
-    });
+    status: 'backlog',
+    priority: alert.labels.severity === 'critical' ? 'critical' : 'high',
+    labels: ['alert', 'auto-generated', alert.labels.service],
+    source: 'signoz',
+    source_id: alert.fingerprint,
+    metadata: alert
+  });
 
   return json({ok: true});
 }
@@ -411,14 +410,14 @@ export async function POST({request, locals}) {
     // 1. Merge PR
     await fetch(`${GITEA_API}/repos/${pr.base.repo.full_name}/pulls/${pr.number}/merge`, {
       method: 'POST',
-      headers: {'Authorization': `token ${GITEA_TOKEN}`},
+      headers: {Authorization: `token ${GITEA_TOKEN}`},
       body: JSON.stringify({merge_method: 'squash'})
     });
 
     // 2. Trigger deploy (via Temporal or direct)
     await fetch('https://api.selify.ai/deploy', {
       method: 'POST',
-      headers: {'Authorization': `Bearer ${DEPLOY_TOKEN}`},
+      headers: {Authorization: `Bearer ${DEPLOY_TOKEN}`},
       body: JSON.stringify({
         repo: pr.base.repo.full_name,
         branch: pr.base.ref,
@@ -507,22 +506,26 @@ CREATE POLICY pm_issues_team_access ON pm_issues
 ## Implementation Roadmap
 
 ### Week 1: Foundation
+
 - [ ] Create `pm_issues` table in Supabase
 - [ ] Replace mock data with real database queries
 - [ ] Add API endpoints for CRUD operations
 - [ ] Connect feedback modal to PM board
 
 ### Week 2: Alerts Integration
+
 - [ ] Set up SigNoz alert webhooks
 - [ ] Create alert → issue pipeline
 - [ ] Add real-time updates via Supabase subscriptions
 
 ### Week 3: AI Agent (MVP)
+
 - [ ] Create Temporal workflow for issue processing
 - [ ] Integrate Claude Code for simple fixes
 - [ ] Add PR creation to Gitea
 
 ### Week 4: Human Loop
+
 - [ ] Add PR review notifications
 - [ ] Implement approval → deploy pipeline
 - [ ] Add metrics and reporting
@@ -555,13 +558,13 @@ CREATE POLICY pm_issues_team_access ON pm_issues
 
 ## Metrics to Track
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| **Issue Resolution Time** | Time from creation to done | < 24h for P1 |
-| **AI Fix Success Rate** | % of AI fixes approved | > 80% |
-| **Human Review Time** | Time in review status | < 4h |
-| **Deploy Frequency** | Deploys per day | 3-5 |
-| **Feedback → Fix Time** | User report to deployed fix | < 48h |
+| Metric                    | Description                 | Target       |
+| ------------------------- | --------------------------- | ------------ |
+| **Issue Resolution Time** | Time from creation to done  | < 24h for P1 |
+| **AI Fix Success Rate**   | % of AI fixes approved      | > 80%        |
+| **Human Review Time**     | Time in review status       | < 4h         |
+| **Deploy Frequency**      | Deploys per day             | 3-5          |
+| **Feedback → Fix Time**   | User report to deployed fix | < 48h        |
 
 ---
 

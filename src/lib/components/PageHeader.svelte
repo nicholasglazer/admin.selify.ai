@@ -1,9 +1,5 @@
 <script>
-  let {
-    title,
-    subtitle = '',
-    actions
-  } = $props();
+  let {title, subtitle = '', actions} = $props();
 </script>
 
 <header class="page-header">

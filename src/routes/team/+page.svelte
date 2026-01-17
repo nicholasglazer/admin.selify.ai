@@ -32,9 +32,7 @@
 <PageHeader title="Team Members" subtitle="{members.length} members total">
   {#snippet actions()}
     {#if adminState.hasCap('team.invite')}
-      <Button href="/team/onboard" variant="primary">
-        Onboard Member
-      </Button>
+      <Button href="/team/onboard" variant="primary">Onboard Member</Button>
     {/if}
   {/snippet}
 </PageHeader>
@@ -96,9 +94,7 @@
   <div class="empty-state">
     <p class="empty-text">No team members yet.</p>
     {#if adminState.hasCap('team.invite')}
-      <Button href="/team/onboard" variant="primary">
-        Onboard First Member
-      </Button>
+      <Button href="/team/onboard" variant="primary">Onboard First Member</Button>
     {/if}
   </div>
 {/if}

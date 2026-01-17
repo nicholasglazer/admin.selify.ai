@@ -87,7 +87,7 @@ export class ToastReactiveState {
    * Dismiss a specific toast
    */
   dismiss(id) {
-    this.toasts = this.toasts.filter(t => t.id !== id);
+    this.toasts = this.toasts.filter((t) => t.id !== id);
   }
 
   /**
@@ -101,12 +101,10 @@ export class ToastReactiveState {
    * Update toast progress (called by timer)
    */
   _updateProgress(id, progress) {
-    const index = this.toasts.findIndex(t => t.id === id);
+    const index = this.toasts.findIndex((t) => t.id === id);
     if (index !== -1) {
       // Create new array to trigger reactivity
-      this.toasts = this.toasts.map(t =>
-        t.id === id ? {...t, progress} : t
-      );
+      this.toasts = this.toasts.map((t) => (t.id === id ? {...t, progress} : t));
     }
   }
 

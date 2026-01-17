@@ -1,26 +1,20 @@
 <script>
   import {getContext} from 'svelte';
+  import {ServiceHealthCard} from '$lib/components/ops';
+  import Badge from '$lib/components/Badge.svelte';
 
   let {data} = $props();
-  const {services} = data;
+  const {services, historyByService, dashboard} = data;
 
   // Get admin state from context for capability checking
   const adminState = getContext('adminState');
 
-  // Status colors
-  const statusColors = {
-    healthy: 'bg-base0B/20 text-base0B border-base0B/30',
-    degraded: 'bg-base09/20 text-base09 border-base09/30',
-    unhealthy: 'bg-base08/20 text-base08 border-base08/30',
-    unknown: 'bg-base3/50 text-base5 border-base3'
-  };
+  // Track expanded cards
+  let expandedService = $state(null);
 
-  const statusLabels = {
-    healthy: 'Healthy',
-    degraded: 'Degraded',
-    unhealthy: 'Unhealthy',
-    unknown: 'Unknown'
-  };
+  function toggleExpand(serviceName) {
+    expandedService = expandedService === serviceName ? null : serviceName;
+  }
 
   // Count by status
   const statusCounts = $derived(
@@ -29,23 +23,45 @@
       return acc;
     }, {})
   );
+
+  // Dashboard stats
+  const errorStats = $derived(dashboard?.errors || {unresolved_count: 0, last_24h_count: 0});
+  const healthStats = $derived(dashboard?.health || {});
+
+  // Refresh handler
+  async function handleRefresh() {
+    // Trigger SvelteKit to refetch data
+    location.reload();
+  }
 </script>
 
 <svelte:head>
-  <title>Services | Selify Admin</title>
+  <title>Service Health | Selify Admin</title>
 </svelte:head>
 
 <div class="services-page">
   <header class="page-header">
     <div>
       <h1 class="page-title">Service Health</h1>
-      <p class="page-subtitle">{services.length} services monitored</p>
+      <p class="page-subtitle">
+        {services.length} services monitored
+        {#if healthStats.avg_uptime_24h}
+          <span class="uptime-badge">
+            {healthStats.avg_uptime_24h}% avg uptime
+          </span>
+        {/if}
+      </p>
     </div>
-    <button class="btn-secondary" onclick={() => location.reload()}>
+    <button class="btn-secondary" onclick={handleRefresh}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="mr-2">
+        <path d="M14 8A6 6 0 1 1 8 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M8 2V5L11 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
       Refresh
     </button>
   </header>
 
+  <!-- Status Summary -->
   <div class="status-summary">
     <div class="summary-card healthy">
       <div class="summary-count">{statusCounts.healthy || 0}</div>
@@ -59,305 +75,279 @@
       <div class="summary-count">{statusCounts.unhealthy || 0}</div>
       <div class="summary-label">Unhealthy</div>
     </div>
-    <div class="summary-card unknown">
-      <div class="summary-count">{statusCounts.unknown || 0}</div>
-      <div class="summary-label">Unknown</div>
+    <div class="summary-card errors">
+      <div class="summary-count">{errorStats.unresolved_count || 0}</div>
+      <div class="summary-label">Errors (24h)</div>
     </div>
   </div>
 
-  <div class="services-grid">
-    {#each services as service}
-      <div class="service-card {service.status}">
-        <div class="service-header">
-          <div class="service-name">{service.name}</div>
-          <span class="status-badge {statusColors[service.status]}">
-            {statusLabels[service.status]}
-          </span>
-        </div>
+  <!-- Services List -->
+  <section class="services-section">
+    <h2 class="section-title">Services</h2>
+    <div class="services-list">
+      {#each services as service}
+        <ServiceHealthCard
+          {service}
+          history={historyByService[service.name] || []}
+          expanded={expandedService === service.name}
+          onexpand={() => toggleExpand(service.name)}
+        />
+      {/each}
+    </div>
+  </section>
 
-        <div class="service-details">
-          {#if service.latency !== null && service.latency !== undefined}
-            <div class="detail-row">
-              <span class="detail-label">Latency</span>
-              <span class="detail-value">{service.latency}ms</span>
-            </div>
-          {/if}
-          <div class="detail-row">
-            <span class="detail-label">Type</span>
-            <span class="detail-value">{service.type || 'internal'}</span>
+  <!-- Quick Actions -->
+  {#if adminState.hasCap('ops.services.restart')}
+    <section class="actions-section">
+      <h2 class="section-title">Quick Actions</h2>
+      <div class="actions-grid">
+        <button class="action-card" disabled>
+          <div class="action-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M10 2v4m0 8v4M2 10h4m8 0h4M4.93 4.93l2.83 2.83m4.48 4.48l2.83 2.83M4.93 15.07l2.83-2.83m4.48-4.48l2.83-2.83"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
           </div>
-          {#if service.error}
-            <div class="error-message">{service.error}</div>
-          {/if}
-        </div>
-
-        {#if adminState.hasCap('ops.services.restart') && service.status !== 'healthy'}
-          <div class="service-actions">
-            <button class="btn-restart">Restart</button>
+          <div class="action-label">Run All Health Checks</div>
+        </button>
+        <button class="action-card" disabled>
+          <div class="action-icon warning">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2v8m0 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
           </div>
-        {/if}
+          <div class="action-label">Restart Unhealthy Services</div>
+        </button>
       </div>
-    {/each}
-  </div>
+    </section>
+  {/if}
 
+  <!-- External Monitoring Links -->
   <section class="external-links">
     <h2 class="section-title">External Monitoring</h2>
     <div class="links-grid">
       <a href="https://temporal.selify.ai" target="_blank" rel="noopener" class="link-card">
-        <div class="link-name">Temporal UI</div>
-        <div class="link-desc">Workflow monitoring</div>
+        <div class="link-icon temporal">T</div>
+        <div class="link-content">
+          <div class="link-name">Temporal UI</div>
+          <div class="link-desc">Workflow monitoring</div>
+        </div>
       </a>
       <a href="https://metrics.selify.ai" target="_blank" rel="noopener" class="link-card">
-        <div class="link-name">SigNoz</div>
-        <div class="link-desc">Metrics & tracing</div>
-      </a>
-      <a href="https://ops.selify.ai" target="_blank" rel="noopener" class="link-card">
-        <div class="link-name">Uptime Kuma</div>
-        <div class="link-desc">Uptime monitoring</div>
-      </a>
-      <a href="https://err.selify.ai" target="_blank" rel="noopener" class="link-card">
-        <div class="link-name">GlitchTip</div>
-        <div class="link-desc">Error tracking</div>
+        <div class="link-icon signoz">S</div>
+        <div class="link-content">
+          <div class="link-name">SigNoz</div>
+          <div class="link-desc">Metrics, traces & logs</div>
+        </div>
       </a>
     </div>
+    <p class="deprecation-note">GlitchTip and Uptime Kuma have been replaced with the built-in monitoring above.</p>
   </section>
 </div>
 
-<style>
+<style lang="postcss">
+  @reference '$theme';
+
   .services-page {
-    max-width: 1200px;
+    @apply max-w-5xl;
   }
 
   .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 2rem;
+    @apply flex justify-between items-start mb-8;
   }
 
   .page-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--color-base7);
-    margin: 0;
+    @apply text-2xl font-bold text-base07 m-0;
   }
 
   .page-subtitle {
-    font-size: 0.875rem;
-    color: var(--color-base5);
-    margin-top: 0.25rem;
+    @apply text-sm text-base05 mt-1 flex items-center gap-3;
+  }
+
+  .uptime-badge {
+    @apply text-xs bg-base0B/15 text-base0B px-2 py-0.5 rounded-full;
   }
 
   .btn-secondary {
-    padding: 0.625rem 1.25rem;
-    background: var(--color-base1);
-    border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
-    color: var(--color-base6);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
+    @apply flex items-center px-4 py-2.5;
+    @apply bg-base01 border border-border rounded-lg;
+    @apply text-sm font-medium text-base06;
+    @apply cursor-pointer transition-all duration-150;
   }
 
   .btn-secondary:hover {
-    background: var(--color-base2);
-    color: var(--color-base7);
+    @apply bg-base02 text-base07 border-base03;
   }
 
+  .mr-2 {
+    @apply mr-2;
+  }
+
+  /* Status Summary */
   .status-summary {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 2rem;
+    @apply grid grid-cols-4 gap-4 mb-8;
   }
 
   .summary-card {
-    background: var(--color-base1);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    text-align: center;
+    @apply bg-base01 border border-border rounded-xl p-5 text-center;
+    @apply transition-all duration-150;
+  }
+
+  .summary-card:hover {
+    @apply border-base03;
   }
 
   .summary-card.healthy {
-    border-color: var(--color-base0B)/30;
+    @apply border-l-4 border-l-base0B;
   }
 
   .summary-card.degraded {
-    border-color: var(--color-base09)/30;
+    @apply border-l-4 border-l-base09;
   }
 
   .summary-card.unhealthy {
-    border-color: var(--color-base08)/30;
+    @apply border-l-4 border-l-base08;
+  }
+
+  .summary-card.errors {
+    @apply border-l-4 border-l-base0D;
   }
 
   .summary-count {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--color-base7);
+    @apply text-3xl font-bold text-base07;
   }
 
   .summary-card.healthy .summary-count {
-    color: var(--color-base0B);
+    @apply text-base0B;
   }
 
   .summary-card.degraded .summary-count {
-    color: var(--color-base09);
+    @apply text-base09;
   }
 
   .summary-card.unhealthy .summary-count {
-    color: var(--color-base08);
+    @apply text-base08;
+  }
+
+  .summary-card.errors .summary-count {
+    @apply text-base0D;
   }
 
   .summary-label {
-    font-size: 0.75rem;
-    color: var(--color-base5);
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-    margin-top: 0.25rem;
+    @apply text-xs text-base04 uppercase tracking-wide mt-1;
   }
 
-  .services-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-
-  .service-card {
-    background: var(--color-base1);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-  }
-
-  .service-card.healthy {
-    border-left: 3px solid var(--color-base0B);
-  }
-
-  .service-card.degraded {
-    border-left: 3px solid var(--color-base09);
-  }
-
-  .service-card.unhealthy {
-    border-left: 3px solid var(--color-base08);
-  }
-
-  .service-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .service-name {
-    font-weight: 600;
-    color: var(--color-base7);
-    font-size: 0.9375rem;
-  }
-
-  .status-badge {
-    display: inline-flex;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    border-radius: 9999px;
-    border: 1px solid;
-  }
-
-  .service-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8125rem;
-  }
-
-  .detail-label {
-    color: var(--color-base5);
-  }
-
-  .detail-value {
-    color: var(--color-base6);
-    font-family: monospace;
-  }
-
-  .error-message {
-    font-size: 0.75rem;
-    color: var(--color-base08);
-    background: var(--color-base08)/10;
-    padding: 0.5rem;
-    border-radius: 0.25rem;
-    margin-top: 0.5rem;
-  }
-
-  .service-actions {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .btn-restart {
-    width: 100%;
-    padding: 0.5rem;
-    background: var(--color-base08)/10;
-    border: 1px solid var(--color-base08)/30;
-    border-radius: 0.375rem;
-    color: var(--color-base08);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .btn-restart:hover {
-    background: var(--color-base08)/20;
-  }
-
+  /* Section */
   .section-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-base6);
-    margin-bottom: 1rem;
+    @apply text-sm font-semibold text-base05 uppercase tracking-wide mb-4;
+  }
+
+  .services-section {
+    @apply mb-8;
+  }
+
+  .services-list {
+    @apply space-y-3;
+  }
+
+  /* Actions */
+  .actions-section {
+    @apply mb-8;
+  }
+
+  .actions-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .action-card {
+    @apply flex items-center gap-4 p-4;
+    @apply bg-base01 border border-border rounded-xl;
+    @apply cursor-pointer transition-all duration-150;
+    @apply text-left;
+  }
+
+  .action-card:hover:not(:disabled) {
+    @apply border-base03 bg-base02;
+  }
+
+  .action-card:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .action-icon {
+    @apply w-10 h-10 rounded-lg bg-base02 flex items-center justify-center;
+    @apply text-base0D;
+  }
+
+  .action-icon.warning {
+    @apply text-base09;
+  }
+
+  .action-label {
+    @apply text-sm font-medium text-base06;
+  }
+
+  /* External Links */
+  .external-links {
+    @apply mt-8;
   }
 
   .links-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    @apply grid grid-cols-2 gap-4;
   }
 
   .link-card {
-    background: var(--color-base1);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 1rem 1.25rem;
-    text-decoration: none;
-    transition: all 0.15s;
+    @apply flex items-center gap-4 p-4;
+    @apply bg-base01 border border-border rounded-xl;
+    @apply no-underline transition-all duration-150;
   }
 
   .link-card:hover {
-    border-color: var(--color-base0D);
-    transform: translateY(-2px);
+    @apply border-base0D bg-base02 transform -translate-y-0.5;
+  }
+
+  .link-icon {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center;
+    @apply text-sm font-bold;
+  }
+
+  .link-icon.temporal {
+    @apply bg-base0E/20 text-base0E;
+  }
+
+  .link-icon.signoz {
+    @apply bg-base0C/20 text-base0C;
+  }
+
+  .link-content {
+    @apply flex flex-col;
   }
 
   .link-name {
-    font-weight: 600;
-    color: var(--color-base7);
-    margin-bottom: 0.25rem;
+    @apply font-semibold text-base07;
   }
 
   .link-desc {
-    font-size: 0.75rem;
-    color: var(--color-base5);
+    @apply text-xs text-base04;
   }
 
-  .external-links {
-    margin-top: 2rem;
+  .deprecation-note {
+    @apply text-xs text-base04 mt-4 text-center italic;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .status-summary {
+      @apply grid-cols-2;
+    }
+
+    .links-grid,
+    .actions-grid {
+      @apply grid-cols-1;
+    }
   }
 </style>

@@ -19,6 +19,9 @@
   setContext('adminState', adminState);
   setContext('toastState', toastState);
 
+  // Provide supabase client for client-side operations
+  setContext('supabase', data.supabase);
+
   // Apply theme on mount (client-side)
   onMount(() => {
     themeState.apply();

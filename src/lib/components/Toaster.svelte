@@ -38,11 +38,7 @@
 
 <div class="toast-container fixed z-50 flex flex-col gap-3 {positionClasses[position]}">
   {#each toastState.toasts as toast (toast.id)}
-    <div
-      class="toast toast-{toast.type}"
-      role="alert"
-      aria-live="polite"
-    >
+    <div class="toast toast-{toast.type}" role="alert" aria-live="polite">
       <!-- Progress bar -->
       {#if toast.duration > 0}
         <div class="toast-progress" style="width: {toast.progress}%"></div>
@@ -65,28 +61,18 @@
         <!-- Actions -->
         <div class="toast-actions">
           {#if toast.action}
-            <button
-              class="toast-action-primary"
-              onclick={() => handleAction(toast, toast.action)}
-            >
+            <button class="toast-action-primary" onclick={() => handleAction(toast, toast.action)}>
               {toast.action.label}
             </button>
           {/if}
           {#if toast.secondaryAction}
-            <button
-              class="toast-action-secondary"
-              onclick={() => handleAction(toast, toast.secondaryAction)}
-            >
+            <button class="toast-action-secondary" onclick={() => handleAction(toast, toast.secondaryAction)}>
               {toast.secondaryAction.label}
             </button>
           {/if}
-          <button
-            class="toast-dismiss"
-            onclick={() => handleDismiss(toast.id)}
-            aria-label="Dismiss"
-          >
+          <button class="toast-dismiss" onclick={() => handleDismiss(toast.id)} aria-label="Dismiss">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>

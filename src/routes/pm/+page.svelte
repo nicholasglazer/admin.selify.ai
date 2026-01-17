@@ -7,14 +7,18 @@
 
   let {data} = $props();
 
-  // Get toast state from parent context
+  // Get toast state and supabase from parent context
   const toastState = getContext('toastState');
+  const supabase = getContext('supabase');
 
-  // Initialize PM board state
+  // Initialize PM board state with supabase for persistence
   const pmState = getPMBoardState({
     issues: data.issues,
     columns: data.columns,
-    showToast: msg => toastState?.show(msg)
+    teamMembers: data.teamMembers,
+    boardSummary: data.boardSummary,
+    showToast: (msg) => toastState?.show(msg),
+    supabase
   });
 
   // Provide PM state to child components
@@ -31,12 +35,13 @@
   });
 
   // Handle new issue creation
-  function handleNewIssue() {
-    pmState.addIssue({
-      title: 'New Issue',
+  async function handleNewIssue() {
+    await pmState.addIssue({
+      title: 'New Task',
       description: '',
       status: 'backlog',
-      priority: 'medium'
+      priority: 'medium',
+      issue_type: 'task'
     });
   }
 </script>
@@ -46,10 +51,7 @@
 </svelte:head>
 
 <div class="pm-page">
-  <PageHeader
-    title="PM Board"
-    subtitle="AI-first task management and issue tracking"
-  >
+  <PageHeader title="PM Board" subtitle="AI-first task management and issue tracking">
     {#snippet actions()}
       <div class="header-stats">
         <div class="stat">
@@ -65,11 +67,21 @@
           <span class="stat-label">Review</span>
         </div>
       </div>
-      <button class="btn-new-issue" onclick={handleNewIssue}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 5v14M5 12h14"/>
+      <button class="btn-new-task" onclick={handleNewIssue}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 5v14M5 12h14" />
         </svg>
-        New Issue
+        New Task
       </button>
     {/snippet}
   </PageHeader>
@@ -104,7 +116,7 @@
     @apply text-xs text-base04;
   }
 
-  .btn-new-issue {
+  .btn-new-task {
     @apply flex items-center gap-2 px-4 py-2;
     @apply bg-base0D text-white rounded-lg;
     @apply text-sm font-medium;

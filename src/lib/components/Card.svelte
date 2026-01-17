@@ -10,12 +10,7 @@
   const Tag = href ? 'a' : onclick ? 'button' : 'div';
 </script>
 
-<svelte:element
-  this={Tag}
-  class="card card-{variant} {className}"
-  {href}
-  {onclick}
->
+<svelte:element this={Tag} class="card card-{variant} {className}" {href} {onclick}>
   {#if children}
     {@render children()}
   {/if}

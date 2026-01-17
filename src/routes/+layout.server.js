@@ -17,8 +17,9 @@ export const load = async ({locals, cookies}) => {
     };
   }
 
-  // Fetch team member data with capabilities
+  // Fetch team member data from internal schema
   const {data: teamMember, error: memberError} = await supabase
+    .schema('internal')
     .from('team_members')
     .select(
       `
@@ -27,6 +28,8 @@ export const load = async ({locals, cookies}) => {
       email,
       personal_email,
       full_name,
+      display_name,
+      role_id,
       role_name,
       status,
       custom_capabilities,
@@ -58,8 +61,9 @@ export const load = async ({locals, cookies}) => {
     p_user_id: user.id
   });
 
-  // Update last login
+  // Update last login in internal schema
   await supabase
+    .schema('internal')
     .from('team_members')
     .update({last_login_at: new Date().toISOString()})
     .eq('id', teamMember.id);

@@ -21,9 +21,7 @@
 
           // Fallback to system preference
           if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
-            theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches
-              ? 'miozu-dark'
-              : 'miozu-light';
+            theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'miozu-dark' : 'miozu-light';
           }
 
           // Default to dark for admin

@@ -48,6 +48,8 @@ export class PMBoardReactiveState {
   // Core Data
   columns = $state([]);
   issues = $state([]);
+  teamMembers = $state([]);
+  boardSummary = $state({});
 
   // UI State
   draggedIssue = $state(null);
@@ -74,10 +76,16 @@ export class PMBoardReactiveState {
   // Toast function reference
   showToast = null;
 
+  // Supabase client reference
+  supabase = null;
+
   constructor(initialData = {}) {
     this.columns = initialData.columns?.length > 0 ? initialData.columns : DEFAULT_COLUMNS;
     this.issues = initialData.issues || [];
+    this.teamMembers = initialData.teamMembers || [];
+    this.boardSummary = initialData.boardSummary || {};
     this.showToast = initialData.showToast || null;
+    this.supabase = initialData.supabase || null;
     this.isLoading = false;
   }
 
@@ -93,7 +101,7 @@ export class PMBoardReactiveState {
 
   // Get issues in a specific column
   getIssuesInColumn(columnId) {
-    return this.issues.filter(i => i.status === columnId);
+    return this.issues.filter((i) => i.status === columnId);
   }
 
   // Get filtered issues by column
@@ -102,7 +110,7 @@ export class PMBoardReactiveState {
     const organized = {};
 
     for (const column of this.columns) {
-      organized[column.id] = filtered.filter(i => i.status === column.id);
+      organized[column.id] = filtered.filter((i) => i.status === column.id);
     }
 
     return organized;
@@ -115,7 +123,7 @@ export class PMBoardReactiveState {
     // Apply search filter
     if (this.filters.search) {
       const search = this.filters.search.toLowerCase();
-      filtered = filtered.filter(i => {
+      filtered = filtered.filter((i) => {
         const title = i.title?.toLowerCase() || '';
         const description = i.description?.toLowerCase() || '';
         return title.includes(search) || description.includes(search);
@@ -124,28 +132,26 @@ export class PMBoardReactiveState {
 
     // Apply assignee filter
     if (this.filters.assignee) {
-      filtered = filtered.filter(i => i.assignee === this.filters.assignee);
+      filtered = filtered.filter((i) => i.assignee === this.filters.assignee);
     }
 
     // Apply priority filter
     if (this.filters.priority) {
-      filtered = filtered.filter(i => i.priority === this.filters.priority);
+      filtered = filtered.filter((i) => i.priority === this.filters.priority);
     }
 
     // Apply label filter
     if (this.filters.labels?.length > 0) {
-      filtered = filtered.filter(i =>
-        this.filters.labels.some(label => i.labels?.includes(label))
-      );
+      filtered = filtered.filter((i) => this.filters.labels.some((label) => i.labels?.includes(label)));
     }
 
     return filtered;
   }
 
-  // Move issue to another column
+  // Move issue to another column (persists to internal.tasks)
   async moveIssue(issueId, toColumnId, position = null) {
-    const issue = this.issues.find(i => i.id === issueId);
-    const toColumn = this.columns.find(c => c.id === toColumnId);
+    const issue = this.issues.find((i) => i.id === issueId);
+    const toColumn = this.columns.find((c) => c.id === toColumnId);
 
     if (!issue || !toColumn) {
       console.error('[PM Board] Issue or column not found:', {issueId, toColumnId});
@@ -166,12 +172,23 @@ export class PMBoardReactiveState {
     // Clear drag states
     this.clearDragStates();
 
-    // TODO: Persist to backend (Gitea API or Supabase)
     try {
-      // For now, just show success toast
+      // Persist to database
+      if (this.supabase) {
+        const {error: updateError} = await this.supabase
+          .schema('internal')
+          .from('tasks')
+          .update({status: toColumnId})
+          .eq('id', issueId);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
       if (this.showToast) {
         this.showToast({
-          title: 'Issue Moved',
+          title: 'Task Moved',
           message: `"${issue.title}" moved to ${toColumn.name}`,
           type: 'success',
           duration: 3000
@@ -180,7 +197,7 @@ export class PMBoardReactiveState {
 
       return true;
     } catch (error) {
-      console.error('Failed to move issue:', error);
+      console.error('Failed to move task:', error);
 
       // Rollback on error
       issue.status = oldStatus;
@@ -190,7 +207,7 @@ export class PMBoardReactiveState {
       if (this.showToast) {
         this.showToast({
           title: 'Move Failed',
-          message: 'Unable to move issue. Please try again.',
+          message: 'Unable to move task. Please try again.',
           type: 'error',
           duration: 5000
         });
@@ -210,41 +227,89 @@ export class PMBoardReactiveState {
     this.selectedIssue = null;
   }
 
-  // Add a new issue
-  addIssue(issueData) {
-    const newIssue = {
-      id: `issue_${Date.now()}`,
-      title: issueData.title || 'New Issue',
+  // Add a new task (persists to internal.tasks)
+  async addIssue(issueData) {
+    const newTaskData = {
+      title: issueData.title || 'New Task',
       description: issueData.description || '',
       status: issueData.status || 'backlog',
       priority: issueData.priority || 'medium',
+      issue_type: issueData.issue_type || 'task',
       labels: issueData.labels || [],
-      assignee: issueData.assignee || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      source: issueData.source || 'manual', // 'manual' | 'feedback' | 'gitea'
-      external_id: issueData.external_id || null
+      assignee_id: issueData.assignee_id || null,
+      source: issueData.source || 'manual'
     };
 
-    this.issues = [newIssue, ...this.issues];
+    try {
+      if (this.supabase) {
+        const {data: insertedTask, error: insertError} = await this.supabase
+          .schema('internal')
+          .from('tasks')
+          .insert(newTaskData)
+          .select()
+          .single();
 
-    if (this.showToast) {
-      this.showToast({
-        title: 'Issue Created',
-        message: `"${newIssue.title}" added to Backlog`,
-        type: 'success',
-        duration: 3000
-      });
+        if (insertError) {
+          throw insertError;
+        }
+
+        // Add to local state with team member info
+        const assignee = this.teamMembers.find((m) => m.id === insertedTask.assignee_id);
+        const localTask = {
+          ...insertedTask,
+          task_number: insertedTask.issue_number,
+          assignee: assignee?.display_name || null,
+          assignee_avatar: assignee?.avatar_url || null
+        };
+
+        this.issues = [localTask, ...this.issues];
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Task Created',
+            message: `"${localTask.title}" added to Backlog`,
+            type: 'success',
+            duration: 3000
+          });
+        }
+
+        return localTask;
+      } else {
+        // Fallback for no supabase (shouldn't happen)
+        const tempTask = {
+          id: crypto.randomUUID(),
+          ...newTaskData,
+          task_number: Date.now(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.issues = [tempTask, ...this.issues];
+        return tempTask;
+      }
+    } catch (error) {
+      console.error('Failed to create task:', error);
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Creation Failed',
+          message: 'Unable to create task. Please try again.',
+          type: 'error',
+          duration: 5000
+        });
+      }
+
+      return null;
     }
-
-    return newIssue;
   }
 
-  // Update an existing issue
-  updateIssue(issueId, updates) {
-    const index = this.issues.findIndex(i => i.id === issueId);
+  // Update an existing task (persists to internal.tasks)
+  async updateIssue(issueId, updates) {
+    const index = this.issues.findIndex((i) => i.id === issueId);
     if (index === -1) return false;
 
+    const oldIssue = {...this.issues[index]};
+
+    // Optimistic update
     this.issues[index] = {
       ...this.issues[index],
       ...updates,
@@ -252,30 +317,111 @@ export class PMBoardReactiveState {
     };
     this.issues = [...this.issues];
 
-    return true;
+    try {
+      if (this.supabase) {
+        // Only send DB-safe fields
+        const dbUpdates = {};
+        const allowedFields = [
+          'title',
+          'description',
+          'status',
+          'priority',
+          'issue_type',
+          'labels',
+          'assignee_id',
+          'parent_id'
+        ];
+        for (const field of allowedFields) {
+          if (updates[field] !== undefined) {
+            dbUpdates[field] = updates[field];
+          }
+        }
+
+        const {error: updateError} = await this.supabase
+          .schema('internal')
+          .from('tasks')
+          .update(dbUpdates)
+          .eq('id', issueId);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to update task:', error);
+
+      // Rollback
+      this.issues[index] = oldIssue;
+      this.issues = [...this.issues];
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Update Failed',
+          message: 'Unable to update task. Please try again.',
+          type: 'error',
+          duration: 5000
+        });
+      }
+
+      return false;
+    }
   }
 
-  // Delete an issue
-  deleteIssue(issueId) {
-    const issue = this.issues.find(i => i.id === issueId);
+  // Delete a task (soft delete in internal.tasks)
+  async deleteIssue(issueId) {
+    const issue = this.issues.find((i) => i.id === issueId);
     if (!issue) return false;
 
-    this.issues = this.issues.filter(i => i.id !== issueId);
+    // Optimistic removal
+    this.issues = this.issues.filter((i) => i.id !== issueId);
 
     if (this.selectedIssue?.id === issueId) {
       this.selectedIssue = null;
     }
 
-    if (this.showToast) {
-      this.showToast({
-        title: 'Issue Deleted',
-        message: `"${issue.title}" has been removed`,
-        type: 'info',
-        duration: 3000
-      });
-    }
+    try {
+      if (this.supabase) {
+        // Soft delete
+        const {error: deleteError} = await this.supabase
+          .schema('internal')
+          .from('tasks')
+          .update({deleted_at: new Date().toISOString()})
+          .eq('id', issueId);
 
-    return true;
+        if (deleteError) {
+          throw deleteError;
+        }
+      }
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Task Deleted',
+          message: `"${issue.title}" has been removed`,
+          type: 'info',
+          duration: 3000
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+
+      // Rollback
+      this.issues = [issue, ...this.issues];
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Delete Failed',
+          message: 'Unable to delete task. Please try again.',
+          type: 'error',
+          duration: 5000
+        });
+      }
+
+      return false;
+    }
   }
 
   // Drag state management
@@ -335,7 +481,7 @@ export class PMBoardReactiveState {
     document.body.classList.add('pm-dragging');
   }
 
-  handleDragMove = event => {
+  handleDragMove = (event) => {
     if (!this.customDragGhost) return;
 
     if (this.dragAnimationFrame) {
@@ -371,7 +517,7 @@ export class PMBoardReactiveState {
     });
   };
 
-  handleDragEnd = async event => {
+  handleDragEnd = async (event) => {
     if (!this.isDragging) return;
 
     const targetColumn = this.hoveredColumn;
@@ -451,7 +597,7 @@ export class PMBoardReactiveState {
 
   // Get issues by priority
   getIssuesByPriority(priority) {
-    return this.issues.filter(i => i.priority === priority);
+    return this.issues.filter((i) => i.priority === priority);
   }
 
   // Cleanup method
@@ -478,7 +624,7 @@ let pmBoardState = null;
 export function getPMBoardState(initialData = {}) {
   if (!pmBoardState) {
     pmBoardState = new PMBoardReactiveState(initialData);
-  } else if (initialData.issues || initialData.columns) {
+  } else if (Object.keys(initialData).length > 0) {
     // Update existing state with new data
     if (initialData.issues) {
       pmBoardState.updateIssues(initialData.issues);
@@ -486,8 +632,17 @@ export function getPMBoardState(initialData = {}) {
     if (initialData.columns) {
       pmBoardState.updateColumns(initialData.columns);
     }
+    if (initialData.teamMembers) {
+      pmBoardState.teamMembers = initialData.teamMembers;
+    }
+    if (initialData.boardSummary) {
+      pmBoardState.boardSummary = initialData.boardSummary;
+    }
     if (initialData.showToast) {
       pmBoardState.showToast = initialData.showToast;
+    }
+    if (initialData.supabase) {
+      pmBoardState.supabase = initialData.supabase;
     }
   }
   return pmBoardState;
