@@ -564,12 +564,12 @@
   }
 
   .page-header {
-    @apply flex items-center justify-between px-6 py-4 border-b border-border bg-surface;
+    @apply flex items-center justify-between px-6 py-4 border-b border-border bg-base01;
   }
 
   .back-btn {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg;
-    @apply text-sm text-text-muted hover:text-text hover:bg-surface-alt;
+    @apply text-sm text-base04 hover:text-base05 hover:bg-base02;
     @apply transition-colors cursor-pointer bg-transparent border-none;
   }
 
@@ -591,7 +591,7 @@
 
   /* Title Section */
   .title-section {
-    @apply bg-surface border border-border rounded-xl p-6;
+    @apply bg-base01 border border-border rounded-xl p-6;
   }
 
   .title-row {
@@ -603,19 +603,19 @@
   }
 
   .risk-critical {
-    @apply bg-error/20 text-error;
+    @apply bg-base08/20 text-base08;
   }
 
   .risk-high {
-    @apply bg-warning/20 text-warning;
+    @apply bg-base09/20 text-base09;
   }
 
   .risk-medium {
-    @apply bg-warning/10 text-warning;
+    @apply bg-base0A/20 text-base0A;
   }
 
   .risk-low {
-    @apply bg-success/20 text-success;
+    @apply bg-base0B/20 text-base0B;
   }
 
   .badge {
@@ -623,23 +623,23 @@
   }
 
   .badge-warning {
-    @apply bg-warning/20 text-warning;
+    @apply bg-base09/20 text-base09;
   }
 
   .badge-info {
-    @apply bg-info/20 text-info;
+    @apply bg-base0C/20 text-base0C;
   }
 
   .badge-success {
-    @apply bg-success/20 text-success;
+    @apply bg-base0B/20 text-base0B;
   }
 
   .badge-danger {
-    @apply bg-error/20 text-error;
+    @apply bg-base08/20 text-base08;
   }
 
   .badge-secondary {
-    @apply bg-surface-alt text-text-muted;
+    @apply bg-base02 text-base04;
   }
 
   .badge-sm {
@@ -647,33 +647,33 @@
   }
 
   .title {
-    @apply text-2xl font-bold text-text-strong mb-4;
+    @apply text-2xl font-bold text-base06 mb-4;
   }
 
   .meta-row {
-    @apply flex flex-wrap items-center gap-4 text-sm text-text-muted mb-3;
+    @apply flex flex-wrap items-center gap-4 text-sm text-base04 mb-3;
   }
 
   .meta-row strong {
-    @apply text-text;
+    @apply text-base05;
   }
 
   .tier-badge {
-    @apply px-2 py-0.5 bg-surface-alt rounded text-xs cursor-help;
+    @apply px-2 py-0.5 bg-base02 rounded text-xs cursor-help;
   }
 
   .timestamps {
-    @apply flex flex-wrap gap-4 text-sm text-text-muted;
+    @apply flex flex-wrap gap-4 text-sm text-base04;
   }
 
   .expires-in,
   .override-window {
-    @apply inline-flex items-center gap-1 text-warning;
+    @apply inline-flex items-center gap-1 text-base09;
   }
 
   /* Section */
   .section {
-    @apply bg-surface border border-border rounded-xl p-6;
+    @apply bg-base01 border border-border rounded-xl p-6;
   }
 
   .section-header {
@@ -681,12 +681,12 @@
   }
 
   .section-title {
-    @apply inline-flex items-center gap-2 text-lg font-semibold text-text-strong;
+    @apply inline-flex items-center gap-2 text-lg font-semibold text-base06;
   }
 
   .toggle-btn {
     @apply px-3 py-1 text-sm rounded-lg;
-    @apply bg-surface-alt text-text-muted hover:text-text;
+    @apply bg-base02 text-base04 hover:text-base05;
     @apply transition-colors cursor-pointer border-none;
   }
 
@@ -700,7 +700,7 @@
   }
 
   .ai-card {
-    @apply bg-surface-alt rounded-lg p-4;
+    @apply bg-base02 rounded-lg p-4;
   }
 
   .ai-card-header {
@@ -708,7 +708,7 @@
   }
 
   .ai-card-label {
-    @apply text-sm font-medium text-text-muted;
+    @apply text-sm font-medium text-base04;
   }
 
   .recommendation {
@@ -716,15 +716,15 @@
   }
 
   .recommendation-approve {
-    @apply bg-success/20 text-success;
+    @apply bg-base0B/20 text-base0B;
   }
 
   .recommendation-reject {
-    @apply bg-error/20 text-error;
+    @apply bg-base08/20 text-base08;
   }
 
   .recommendation-needs_review {
-    @apply bg-warning/20 text-warning;
+    @apply bg-base09/20 text-base09;
   }
 
   .confidence-display {
@@ -736,7 +736,7 @@
   }
 
   .confidence-bar {
-    @apply h-2 bg-bg rounded-full overflow-hidden;
+    @apply h-2 bg-base00 rounded-full overflow-hidden;
   }
 
   .confidence-fill {
@@ -744,39 +744,39 @@
   }
 
   .confidence-label {
-    @apply text-xs text-text-muted;
+    @apply text-xs text-base04;
   }
 
   .confidence-high {
-    @apply text-success;
+    @apply text-base0B;
   }
 
   .confidence-fill.confidence-high {
-    @apply bg-success;
+    @apply bg-base0B;
   }
 
   .confidence-medium {
-    @apply text-info;
+    @apply text-base0C;
   }
 
   .confidence-fill.confidence-medium {
-    @apply bg-info;
+    @apply bg-base0C;
   }
 
   .confidence-low {
-    @apply text-warning;
+    @apply text-base09;
   }
 
   .confidence-fill.confidence-low {
-    @apply bg-warning;
+    @apply bg-base09;
   }
 
   .confidence-very-low {
-    @apply text-error;
+    @apply text-base08;
   }
 
   .confidence-fill.confidence-very-low {
-    @apply bg-error;
+    @apply bg-base08;
   }
 
   .breakdown-list {
@@ -788,31 +788,31 @@
   }
 
   .breakdown-label {
-    @apply w-24 text-text-muted capitalize truncate;
+    @apply w-24 text-base04 capitalize truncate;
   }
 
   .breakdown-bar {
-    @apply flex-1 h-1.5 bg-bg rounded-full overflow-hidden;
+    @apply flex-1 h-1.5 bg-base00 rounded-full overflow-hidden;
   }
 
   .breakdown-fill {
-    @apply h-full bg-primary rounded-full;
+    @apply h-full bg-base0D rounded-full;
   }
 
   .breakdown-value {
-    @apply w-10 text-right text-text-muted;
+    @apply w-10 text-right text-base04;
   }
 
   .ai-reasoning {
-    @apply mt-4 p-4 bg-surface-alt rounded-lg;
+    @apply mt-4 p-4 bg-base02 rounded-lg;
   }
 
   .ai-reasoning h3 {
-    @apply text-sm font-medium text-text-muted mb-2;
+    @apply text-sm font-medium text-base04 mb-2;
   }
 
   .ai-reasoning p {
-    @apply text-sm text-text leading-relaxed;
+    @apply text-sm text-base05 leading-relaxed;
   }
 
   /* Git Changes */
@@ -825,15 +825,15 @@
   }
 
   .git-stat.additions {
-    @apply text-success;
+    @apply text-base0B;
   }
 
   .git-stat.deletions {
-    @apply text-error;
+    @apply text-base08;
   }
 
   .git-branch {
-    @apply inline-flex items-center gap-1 text-text-muted;
+    @apply inline-flex items-center gap-1 text-base04;
   }
 
   .files-list {
@@ -845,7 +845,7 @@
   }
 
   .file-path {
-    @apply font-mono text-text;
+    @apply font-mono text-base05;
   }
 
   .file-stats {
@@ -853,32 +853,32 @@
   }
 
   .file-stats .additions {
-    @apply text-success;
+    @apply text-base0B;
   }
 
   .file-stats .deletions {
-    @apply text-error;
+    @apply text-base08;
   }
 
   .diff-viewer {
-    @apply bg-bg border border-border rounded-lg p-4 overflow-x-auto;
+    @apply bg-base00 border border-border rounded-lg p-4 overflow-x-auto;
   }
 
   .diff-viewer pre {
-    @apply text-xs font-mono text-text whitespace-pre;
+    @apply text-xs font-mono text-base05 whitespace-pre;
   }
 
   .payload-display {
-    @apply bg-bg border border-border rounded-lg p-4 overflow-x-auto;
+    @apply bg-base00 border border-border rounded-lg p-4 overflow-x-auto;
   }
 
   .payload-display pre {
-    @apply text-sm font-mono text-text whitespace-pre-wrap;
+    @apply text-sm font-mono text-base05 whitespace-pre-wrap;
   }
 
   /* Decision Section */
   .decision-section {
-    @apply border-primary/30;
+    @apply border-base0D/30;
   }
 
   .comment-form {
@@ -886,14 +886,14 @@
   }
 
   .comment-form label {
-    @apply block text-sm font-medium text-text-muted mb-2;
+    @apply block text-sm font-medium text-base04 mb-2;
   }
 
   .comment-form textarea {
     @apply w-full px-4 py-3 rounded-lg;
-    @apply bg-bg border border-border text-text;
+    @apply bg-base00 border border-border text-base05;
     @apply text-sm resize-none;
-    @apply outline-none focus:border-primary;
+    @apply outline-none focus:border-base0D;
     @apply transition-colors;
   }
 
@@ -903,7 +903,7 @@
 
   /* Resolution Section */
   .resolution-section {
-    @apply bg-surface-alt;
+    @apply bg-base02;
   }
 
   .resolution-info {
@@ -915,11 +915,11 @@
   }
 
   .resolution-label {
-    @apply text-text-muted;
+    @apply text-base04;
   }
 
   .resolver {
-    @apply inline-flex items-center gap-1.5 text-text;
+    @apply inline-flex items-center gap-1.5 text-base05;
   }
 
   .resolution-comment {
@@ -927,16 +927,16 @@
   }
 
   .resolution-comment p {
-    @apply mt-2 text-sm text-text;
+    @apply mt-2 text-sm text-base05;
   }
 
   /* Sidebar Cards */
   .sidebar-card {
-    @apply bg-surface border border-border rounded-xl p-4;
+    @apply bg-base01 border border-border rounded-xl p-4;
   }
 
   .sidebar-card h3 {
-    @apply text-sm font-semibold text-text-strong mb-3 pb-2 border-b border-border;
+    @apply text-sm font-semibold text-base06 mb-3 pb-2 border-b border-border;
   }
 
   .info-list {
@@ -944,11 +944,11 @@
   }
 
   .info-list dt {
-    @apply text-text-muted;
+    @apply text-base04;
   }
 
   .info-list dd {
-    @apply text-text mt-0.5;
+    @apply text-base05 mt-0.5;
   }
 
   .info-list dd.mono {
@@ -960,15 +960,15 @@
   }
 
   .vote-item {
-    @apply p-3 rounded-lg bg-surface-alt;
+    @apply p-3 rounded-lg bg-base02;
   }
 
   .vote-item.vote-approve {
-    @apply border-l-2 border-success;
+    @apply border-l-2 border-base0B;
   }
 
   .vote-item.vote-reject {
-    @apply border-l-2 border-error;
+    @apply border-l-2 border-base08;
   }
 
   .vote-header {
@@ -976,7 +976,7 @@
   }
 
   .voter {
-    @apply inline-flex items-center gap-1 text-sm font-medium text-text;
+    @apply inline-flex items-center gap-1 text-sm font-medium text-base05;
   }
 
   .vote-type {
@@ -984,19 +984,19 @@
   }
 
   .vote-item.vote-approve .vote-type {
-    @apply text-success;
+    @apply text-base0B;
   }
 
   .vote-item.vote-reject .vote-type {
-    @apply text-error;
+    @apply text-base08;
   }
 
   .vote-comment {
-    @apply text-sm text-text-muted mt-2;
+    @apply text-sm text-base04 mt-2;
   }
 
   .vote-time {
-    @apply text-xs text-text-muted;
+    @apply text-xs text-base04;
   }
 
   .similar-list {
@@ -1004,15 +1004,15 @@
   }
 
   .similar-item a {
-    @apply block p-2 rounded hover:bg-surface-alt transition-colors;
+    @apply block p-2 rounded hover:bg-base02 transition-colors;
   }
 
   .similar-title {
-    @apply block text-sm text-text truncate;
+    @apply block text-sm text-base05 truncate;
   }
 
   .similar-meta {
-    @apply flex items-center gap-2 text-xs text-text-muted mt-1;
+    @apply flex items-center gap-2 text-xs text-base04 mt-1;
   }
 
   .sidebar-actions {
@@ -1028,9 +1028,9 @@
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2;
     @apply rounded-lg font-medium text-sm;
-    @apply border border-border bg-surface text-text;
+    @apply border border-border bg-base01 text-base05;
     @apply transition-all duration-150 cursor-pointer;
-    @apply hover:bg-surface-alt;
+    @apply hover:bg-base02;
   }
 
   .btn:disabled {
@@ -1046,13 +1046,13 @@
   }
 
   .btn-success {
-    @apply bg-success text-white border-success;
-    @apply hover:bg-success/90;
+    @apply bg-base0B text-white border-base0B;
+    @apply hover:bg-base0B/90;
   }
 
   .btn-danger {
-    @apply bg-error text-white border-error;
-    @apply hover:bg-error/90;
+    @apply bg-base08 text-white border-base08;
+    @apply hover:bg-base08/90;
   }
 
   .btn-outline {
@@ -1061,7 +1061,7 @@
 
   /* States */
   .loading-state {
-    @apply flex items-center justify-center py-12 text-text-muted;
+    @apply flex items-center justify-center py-12 text-base04;
   }
 
   /* Animations */
