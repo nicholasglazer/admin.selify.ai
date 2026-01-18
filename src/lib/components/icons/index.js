@@ -1,5 +1,7 @@
 // Admin Dashboard Icons
 export {default as Home} from './Home.svelte';
+export {default as Sun} from './Sun.svelte';
+export {default as Moon} from './Moon.svelte';
 export {default as Kanban} from './Kanban.svelte';
 export {default as MessageSquare} from './MessageSquare.svelte';
 export {default as Users} from './Users.svelte';

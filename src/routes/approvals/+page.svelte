@@ -479,27 +479,27 @@
   }
 
   .stat-card {
-    @apply bg-surface border border-border rounded-lg p-4 text-center;
+    @apply bg-base01 border border-border rounded-lg p-4 text-center;
   }
 
   .stat-value {
-    @apply text-2xl font-bold text-text-strong;
+    @apply text-2xl font-bold text-base06;
   }
 
   .stat-value.urgent {
-    @apply text-warning;
+    @apply text-base09;
   }
 
   .stat-value.success {
-    @apply text-success;
+    @apply text-base0B;
   }
 
   .stat-value.danger {
-    @apply text-error;
+    @apply text-base08;
   }
 
   .stat-label {
-    @apply text-sm text-text-muted mt-1;
+    @apply text-sm text-base04 mt-1;
   }
 
   /* Filters */
@@ -512,30 +512,30 @@
   }
 
   .tab {
-    @apply px-4 py-2 rounded-lg text-sm font-medium text-text-muted;
-    @apply hover:bg-surface-alt transition-all cursor-pointer;
+    @apply px-4 py-2 rounded-lg text-sm font-medium text-base04;
+    @apply hover:bg-base02 transition-all cursor-pointer;
     @apply border-none bg-transparent;
   }
 
   .tab.active {
-    @apply bg-primary/10 text-primary;
+    @apply bg-base0D/10 text-base0D;
   }
 
   .tab-badge {
-    @apply ml-1 px-1.5 py-0.5 rounded-full text-xs bg-warning/20 text-warning;
+    @apply ml-1 px-1.5 py-0.5 rounded-full text-xs bg-base09/20 text-base09;
   }
 
   .risk-select {
-    @apply px-3 py-2 rounded-lg border border-border bg-surface text-text text-sm;
+    @apply px-3 py-2 rounded-lg border border-border bg-base01 text-base05 text-sm;
   }
 
   /* Batch Actions */
   .batch-actions {
-    @apply flex items-center gap-3 p-4 mb-4 bg-primary/10 rounded-lg;
+    @apply flex items-center gap-3 p-4 mb-4 bg-base0D/10 rounded-lg;
   }
 
   .batch-count {
-    @apply font-medium text-primary;
+    @apply font-medium text-base0D;
   }
 
   /* Approvals List */
@@ -544,13 +544,13 @@
   }
 
   .approval-card {
-    @apply bg-surface border border-border rounded-xl p-5;
+    @apply bg-base01 border border-border rounded-xl p-5;
     @apply cursor-pointer transition-all duration-200;
-    @apply hover:border-primary/40 hover:shadow-lg;
+    @apply hover:border-base0D/40 hover:shadow-lg;
   }
 
   .approval-card.selected {
-    @apply border-primary bg-primary/5;
+    @apply border-base0D bg-base0D/5;
   }
 
   .batch-checkbox {
@@ -570,19 +570,19 @@
   }
 
   .risk-critical {
-    @apply bg-error/20 text-error;
+    @apply bg-base08/20 text-base08;
   }
 
   .risk-high {
-    @apply bg-warning/20 text-warning;
+    @apply bg-base09/20 text-base09;
   }
 
   .risk-medium {
-    @apply bg-warning/10 text-warning;
+    @apply bg-base0A/20 text-base0A;
   }
 
   .risk-low {
-    @apply bg-success/20 text-success;
+    @apply bg-base0B/20 text-base0B;
   }
 
   .badge {
@@ -590,23 +590,23 @@
   }
 
   .badge-warning {
-    @apply bg-warning/20 text-warning;
+    @apply bg-base09/20 text-base09;
   }
 
   .badge-info {
-    @apply bg-info/20 text-info;
+    @apply bg-base0C/20 text-base0C;
   }
 
   .badge-success {
-    @apply bg-success/20 text-success;
+    @apply bg-base0B/20 text-base0B;
   }
 
   .badge-danger {
-    @apply bg-error/20 text-error;
+    @apply bg-base08/20 text-base08;
   }
 
   .badge-secondary {
-    @apply bg-surface-alt text-text-muted;
+    @apply bg-base02 text-base04;
   }
 
   .card-body {
@@ -614,23 +614,23 @@
   }
 
   .approval-title {
-    @apply text-lg font-semibold text-text-strong mb-3;
+    @apply text-lg font-semibold text-base06 mb-3;
   }
 
   .approval-meta {
-    @apply flex flex-wrap gap-4 text-sm text-text-muted mb-3;
+    @apply flex flex-wrap gap-4 text-sm text-base04 mb-3;
   }
 
   .approval-meta strong {
-    @apply text-text;
+    @apply text-base05;
   }
 
   .tier-badge {
-    @apply px-2 py-0.5 bg-surface-alt rounded text-xs;
+    @apply px-2 py-0.5 bg-base02 rounded text-xs;
   }
 
   .ai-section {
-    @apply p-3 bg-surface-alt rounded-lg mb-3;
+    @apply p-3 bg-base02 rounded-lg mb-3;
   }
 
   .confidence-row {
@@ -638,7 +638,7 @@
   }
 
   .confidence-bar {
-    @apply flex-1 h-2 bg-bg rounded-full overflow-hidden;
+    @apply flex-1 h-2 bg-base00 rounded-full overflow-hidden;
   }
 
   .confidence-fill {
@@ -646,35 +646,35 @@
   }
 
   .confidence-high {
-    @apply text-success;
+    @apply text-base0B;
   }
 
   .confidence-fill.confidence-high {
-    @apply bg-success;
+    @apply bg-base0B;
   }
 
   .confidence-medium {
-    @apply text-info;
+    @apply text-base0C;
   }
 
   .confidence-fill.confidence-medium {
-    @apply bg-info;
+    @apply bg-base0C;
   }
 
   .confidence-low {
-    @apply text-warning;
+    @apply text-base09;
   }
 
   .confidence-fill.confidence-low {
-    @apply bg-warning;
+    @apply bg-base09;
   }
 
   .confidence-very-low {
-    @apply text-error;
+    @apply text-base08;
   }
 
   .confidence-fill.confidence-very-low {
-    @apply bg-error;
+    @apply bg-base08;
   }
 
   .ai-recommendation {
@@ -686,19 +686,19 @@
   }
 
   .recommendation-approve {
-    @apply bg-success/20 text-success;
+    @apply bg-base0B/20 text-base0B;
   }
 
   .recommendation-reject {
-    @apply bg-error/20 text-error;
+    @apply bg-base08/20 text-base08;
   }
 
   .recommendation-needs_review {
-    @apply bg-warning/20 text-warning;
+    @apply bg-base09/20 text-base09;
   }
 
   .ai-reasoning {
-    @apply text-sm text-text-muted leading-relaxed;
+    @apply text-sm text-base04 leading-relaxed;
   }
 
   .card-footer {
@@ -706,11 +706,11 @@
   }
 
   .footer-meta {
-    @apply flex items-center gap-4 text-sm text-text-muted;
+    @apply flex items-center gap-4 text-sm text-base04;
   }
 
   .expires {
-    @apply inline-flex items-center gap-1 text-warning;
+    @apply inline-flex items-center gap-1 text-base09;
   }
 
   .quick-actions {
@@ -721,9 +721,9 @@
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 px-4 py-2;
     @apply rounded-lg font-medium text-sm;
-    @apply border border-border bg-surface text-text;
+    @apply border border-border bg-base01 text-base05;
     @apply transition-all duration-150 cursor-pointer;
-    @apply hover:bg-surface-alt;
+    @apply hover:bg-base02;
   }
 
   .btn:disabled {
@@ -739,18 +739,18 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-white border-primary;
-    @apply hover:bg-primary/90;
+    @apply bg-base0D text-white border-base0D;
+    @apply hover:bg-base0D/90;
   }
 
   .btn-success {
-    @apply bg-success text-white border-success;
-    @apply hover:bg-success/90;
+    @apply bg-base0B text-white border-base0B;
+    @apply hover:bg-base0B/90;
   }
 
   .btn-danger {
-    @apply bg-error text-white border-error;
-    @apply hover:bg-error/90;
+    @apply bg-base08 text-white border-base08;
+    @apply hover:bg-base08/90;
   }
 
   .btn-outline {
@@ -760,10 +760,10 @@
   /* States */
   .loading-state,
   .empty-state {
-    @apply flex flex-col items-center justify-center py-12 text-text-muted;
+    @apply flex flex-col items-center justify-center py-12 text-base04;
   }
 
-  .empty-state svg {
+  .empty-state :global(svg) {
     @apply mb-4 opacity-50;
   }
 

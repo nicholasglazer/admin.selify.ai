@@ -123,6 +123,19 @@
   --color-black: #000;
   --color-white: #fff;
 
+  /* Semantic color aliases for component styles */
+  --color-bg: var(--color-base00);
+  --color-surface: var(--color-base01);
+  --color-surface-alt: var(--color-base02);
+  --color-text: var(--color-base05);
+  --color-text-strong: var(--color-base07);
+  --color-text-muted: var(--color-base04);
+  --color-primary: var(--color-base0D);
+  --color-success: var(--color-base0B);
+  --color-warning: var(--color-base0A);
+  --color-error: var(--color-base08);
+  --color-info: var(--color-base0C);
+
   /* Typography */
   --font-sans:
     'IBM Plex Sans', Inter, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
