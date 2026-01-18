@@ -103,20 +103,22 @@
   {#snippet footer()}
     <div class="sidebar-footer-content">
       <!-- Theme Toggle -->
-      <button
-        class="theme-toggle"
-        class:collapsed
-        onclick={() => themeState.toggle()}
-        title={themeState.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        {#if themeState.isDark}
-          <Sun size={18} />
-          {#if !collapsed}<span class="toggle-label">Light Mode</span>{/if}
-        {:else}
-          <Moon size={18} />
-          {#if !collapsed}<span class="toggle-label">Dark Mode</span>{/if}
-        {/if}
-      </button>
+      {#if themeState}
+        <button
+          class="theme-toggle"
+          class:collapsed
+          onclick={() => themeState.toggle()}
+          title={themeState.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {#if themeState.isDark}
+            <Sun size={18} />
+            {#if !collapsed}<span class="toggle-label">Light Mode</span>{/if}
+          {:else}
+            <Moon size={18} />
+            {#if !collapsed}<span class="toggle-label">Dark Mode</span>{/if}
+          {/if}
+        </button>
+      {/if}
 
       {#if teamMember}
         <div class="user-info" class:collapsed>
