@@ -1,5 +1,5 @@
 import {createServerClient} from '@supabase/ssr';
-import {PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY} from '$env/static/public';
+import {env as publicEnv} from '$env/dynamic/public';
 import {env} from '$env/dynamic/private';
 import {redirect} from '@sveltejs/kit';
 
@@ -46,11 +46,11 @@ export const handle = async ({event, resolve}) => {
   }
 
   // Attach API configuration
-  event.locals.apiBaseUrl = env.API_BASE_URL || PUBLIC_SUPABASE_URL;
-  event.locals.supabaseAnonKey = PUBLIC_SUPABASE_ANON_KEY;
+  event.locals.apiBaseUrl = env.API_BASE_URL || publicEnv.PUBLIC_SUPABASE_URL;
+  event.locals.supabaseAnonKey = publicEnv.PUBLIC_SUPABASE_ANON_KEY;
 
   // Create Supabase client with SSO cookie configuration
-  event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+  event.locals.supabase = createServerClient(publicEnv.PUBLIC_SUPABASE_URL, publicEnv.PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll: () => event.cookies.getAll(),
       setAll: (cookiesToSet) => {
