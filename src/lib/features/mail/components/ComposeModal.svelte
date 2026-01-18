@@ -9,6 +9,7 @@
    * - Account selector for shared mailboxes
    * - Auto-save drafts
    */
+  import DOMPurify from 'isomorphic-dompurify';
   import {X, Paperclip, Send, Trash, Minimize2, Maximize2, ChevronDown} from '$components/icons';
   import {Button} from '@miozu/jera';
   import {Badge} from '@miozu/jera';
@@ -114,6 +115,11 @@
   // Get account info for from field
   let fromAccount = $derived(
     mail.accounts.find(a => a.id === mail.composeDraft?.accountId) || mail.activeAccount
+  );
+
+  // Sanitize draft body for display
+  let sanitizedBody = $derived(
+    mail.composeDraft?.body ? DOMPurify.sanitize(mail.composeDraft.body) : ''
   );
 </script>
 
@@ -245,9 +251,10 @@
           oninput={updateBody}
           role="textbox"
           aria-multiline="true"
+          aria-label="Email body"
           data-placeholder="Write your message..."
         >
-          {@html mail.composeDraft?.body || ''}
+          {@html sanitizedBody}
         </div>
       </div>
 

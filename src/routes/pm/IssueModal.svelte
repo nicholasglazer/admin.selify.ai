@@ -1,8 +1,44 @@
 <script>
-  import {getContext} from 'svelte';
+  import {getContext, onMount} from 'svelte';
   import {Button} from '$components';
 
   let {issue, onClose} = $props();
+
+  // Focus trap refs
+  let modalRef = $state(null);
+  let previousActiveElement = $state(null);
+
+  // Focus trap on mount
+  onMount(() => {
+    previousActiveElement = document.activeElement;
+    // Focus the title input when modal opens
+    const firstInput = modalRef?.querySelector('input, button, select, textarea');
+    firstInput?.focus();
+
+    return () => {
+      // Return focus on unmount
+      previousActiveElement?.focus();
+    };
+  });
+
+  // Handle tab key for focus trap
+  function handleModalKeydown(e) {
+    if (e.key === 'Tab' && modalRef) {
+      const focusable = modalRef.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }
+  }
 
   const pmState = getContext('pmState');
   const toastState = getContext('toastState');
@@ -129,11 +165,19 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="modal-backdrop" onclick={onClose} role="presentation">
-  <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+  <div
+    class="modal"
+    bind:this={modalRef}
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={handleModalKeydown}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+  >
     <div class="modal-header">
       <div class="modal-title-row">
-        <input type="text" class="title-input" bind:value={title} placeholder="Task title" />
-        <button class="close-btn" onclick={onClose}>
+        <input type="text" class="title-input" id="modal-title" bind:value={title} placeholder="Task title" aria-label="Task title" />
+        <button class="close-btn" onclick={onClose} aria-label="Close modal">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"

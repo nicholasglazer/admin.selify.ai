@@ -87,12 +87,16 @@
   </div>
 
   <!-- Tabs -->
-  <div class="tab-nav">
+  <div class="tab-nav" role="tablist" aria-label="Service views">
     {#each tabs as tab}
       <button
         class="tab-btn"
         class:active={activeTab === tab.id}
         onclick={() => activeTab = tab.id}
+        role="tab"
+        aria-selected={activeTab === tab.id}
+        aria-controls="tabpanel-{tab.id}"
+        id="tab-{tab.id}"
       >
         {tab.label}
       </button>
@@ -102,7 +106,7 @@
   <!-- Content -->
   <div class="content">
     {#if activeTab === 'overview'}
-      <div class="overview">
+      <div class="overview" role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
         <!-- Quick numbers -->
         <div class="num-row">
           <div class="num-item">
@@ -173,7 +177,7 @@
       </div>
 
     {:else if activeTab === 'services'}
-      <div class="services-view">
+      <div class="services-view" role="tabpanel" id="tabpanel-services" aria-labelledby="tab-services">
         <!-- Status counts -->
         <div class="status-counts">
           <div class="count-item ok">
@@ -204,7 +208,7 @@
       </div>
 
     {:else if activeTab === 'database'}
-      <div class="db-view">
+      <div class="db-view" role="tabpanel" id="tabpanel-database" aria-labelledby="tab-database">
         <div class="db-grid">
           <div class="db-card">
             <span class="db-val">{dbSummary.database_size || '—'}</span>
@@ -238,7 +242,7 @@
       </div>
 
     {:else if activeTab === 'external'}
-      <div class="ext-view">
+      <div class="ext-view" role="tabpanel" id="tabpanel-external" aria-labelledby="tab-external">
         <p class="ext-intro">External monitoring for deep analysis.</p>
 
         <div class="ext-grid">

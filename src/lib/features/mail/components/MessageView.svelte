@@ -8,6 +8,7 @@
    * - Attachments
    * - Reply/Forward/Archive/Delete actions
    */
+  import DOMPurify from 'isomorphic-dompurify';
   import {format} from 'date-fns';
   import {
     Reply,
@@ -72,6 +73,11 @@
   let recipients = $derived(mail.selectedMessage?.to || []);
   let ccRecipients = $derived(mail.selectedMessage?.cc || []);
   let hasMoreRecipients = $derived(recipients.length + (ccRecipients?.length || 0) > 3);
+
+  // Sanitize HTML content to prevent XSS
+  let sanitizedHtml = $derived(
+    mail.selectedMessage?.html ? DOMPurify.sanitize(mail.selectedMessage.html) : ''
+  );
 </script>
 
 <article class="message-view {className}">
@@ -190,7 +196,7 @@
     <div class="message-body">
       {#if mail.selectedMessage.html}
         <div class="body-html">
-          {@html mail.selectedMessage.html}
+          {@html sanitizedHtml}
         </div>
       {:else if mail.selectedMessage.text}
         <pre class="body-text">{mail.selectedMessage.text}</pre>

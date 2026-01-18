@@ -44,6 +44,14 @@
     if (pmState.isDragging) return;
     pmState.selectIssue(issue);
   }
+
+  // Handle keyboard activation
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick(e);
+    }
+  }
 </script>
 
 <div
@@ -52,8 +60,10 @@
   data-issue-id={issue.id}
   onmousedown={handleMouseDown}
   onclick={handleClick}
+  onkeydown={handleKeyDown}
   role="button"
   tabindex="0"
+  aria-label="Task: {issue.title}"
 >
   <!-- Priority indicator -->
   <div class="priority-bar"></div>

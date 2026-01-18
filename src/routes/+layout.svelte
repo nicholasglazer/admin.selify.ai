@@ -28,7 +28,6 @@
   });
 
   // Derived values
-  let isDark = $derived(themeState.isDark);
   let teamMember = $derived(data.teamMember);
   let capabilities = $derived(data.capabilities);
 </script>

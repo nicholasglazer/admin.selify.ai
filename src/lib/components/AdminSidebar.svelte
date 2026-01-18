@@ -19,7 +19,8 @@
     Terminal,
     BarChart,
     TestTube,
-    Database
+    Database,
+    CheckCircle
   } from './icons';
 
   let {teamMember, capabilities} = $props();
@@ -35,6 +36,7 @@
       {label: 'Dashboard', href: '/', icon: Home, show: true},
       {label: 'PM Board', href: '/pm', icon: Kanban, show: hasCap('ops.tasks.view')},
       {label: 'QA', href: '/qa', icon: TestTube, show: hasCap('ops.qa.view')},
+      {label: 'Approvals', href: '/approvals', icon: CheckCircle, show: hasCap('approvals.view') || hasCap('ops.approvals.view')},
       {label: 'Feedback', href: '/feedback', icon: MessageSquare, show: hasCap('ops.feedback.view')},
       {label: 'Team', href: '/team', icon: Users, show: hasCap('team.view')},
       {label: 'Workspaces', href: '/workspaces', icon: Building, show: hasCap('admin.workspaces.view')},

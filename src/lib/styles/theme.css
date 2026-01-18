@@ -144,6 +144,13 @@
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
 
+  /* Letter spacing */
+  --tracking-tight: -0.02em;
+  --tracking-tighter: -0.03em;
+
+  /* Small text */
+  --text-2xs: 0.625rem; /* 10px */
+
   /* Shadows - reference the CSS variables */
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);

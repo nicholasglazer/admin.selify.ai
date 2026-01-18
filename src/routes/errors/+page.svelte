@@ -48,6 +48,7 @@
         class="filter"
         value={filters.service || ''}
         onchange={(e) => updateFilter('service', e.target.value)}
+        aria-label="Filter by service"
       >
         <option value="">All services</option>
         {#each services as service}
@@ -58,6 +59,7 @@
         class="filter"
         value={filters.status || ''}
         onchange={(e) => updateFilter('status', e.target.value)}
+        aria-label="Filter by status"
       >
         <option value="">All statuses</option>
         <option value="new">New</option>
@@ -69,6 +71,7 @@
         class="filter"
         value={filters.hours}
         onchange={(e) => updateFilter('hours', e.target.value)}
+        aria-label="Filter by time period"
       >
         <option value="1">1h</option>
         <option value="24">24h</option>

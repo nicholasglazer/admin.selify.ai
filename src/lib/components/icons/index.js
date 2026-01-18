@@ -41,3 +41,10 @@ export {default as ReplyAll} from './ReplyAll.svelte';
 export {default as Forward} from './Forward.svelte';
 export {default as MoreHorizontal} from './MoreHorizontal.svelte';
 export {default as Download} from './Download.svelte';
+
+// Approval System Icons
+export {default as Clock} from './Clock.svelte';
+export {default as TriangleAlert} from './TriangleAlert.svelte';
+export {default as ExternalLink} from './ExternalLink.svelte';
+export {default as ArrowLeft} from './ArrowLeft.svelte';
+export {default as GitBranch} from './GitBranch.svelte';

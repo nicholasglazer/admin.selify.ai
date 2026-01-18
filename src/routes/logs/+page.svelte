@@ -66,23 +66,24 @@
   @reference '$theme';
 
   .logs-page {
-    @apply max-w-4xl;
+    @apply max-w-5xl mx-auto;
   }
 
   .page-header {
-    @apply flex justify-between items-center mb-8;
+    @apply flex justify-between items-center mb-10;
   }
 
   .page-title {
-    @apply text-2xl font-bold text-base07 m-0;
+    @apply text-2xl font-semibold text-base06 m-0;
+    letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    @apply text-sm text-base05 mt-1;
+    @apply text-sm text-base04 mt-1;
   }
 
   .coming-soon-main {
-    @apply mb-8;
+    @apply mb-10;
   }
 
   .coming-soon-content {
@@ -125,11 +126,11 @@
   }
 
   .services-preview {
-    @apply mb-8;
+    @apply mb-10;
   }
 
   .section-title {
-    @apply text-sm font-semibold text-base05 uppercase tracking-wide mb-4;
+    @apply text-xs font-medium text-base04 uppercase tracking-wider mb-4;
   }
 
   .services-grid {
@@ -138,5 +139,16 @@
 
   .service-chip {
     @apply inline-block;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .page-header {
+      @apply flex-col items-start gap-3;
+    }
+
+    .services-grid {
+      @apply gap-1;
+    }
   }
 </style>
