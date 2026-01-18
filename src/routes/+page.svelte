@@ -3,17 +3,29 @@
 
   let {data} = $props();
 
-  const adminState = getContext('adminState');
+  // Get context safely
+  let adminState;
+  try {
+    adminState = getContext('adminState');
+  } catch (e) {
+    adminState = null;
+  }
 
   // Derived from data to handle updates
-  let dashboard = $derived(data.dashboard);
-  let databaseHealth = $derived(data.databaseHealth);
-  let teamCount = $derived(data.teamCount);
-  let workspaceCount = $derived(data.workspaceCount);
-  let teamMember = $derived(adminState?.teamMember);
+  let dashboard = $derived(data?.dashboard ?? null);
+  let databaseHealth = $derived(data?.databaseHealth ?? null);
+  let teamCount = $derived(data?.teamCount ?? 0);
+  let workspaceCount = $derived(data?.workspaceCount ?? 0);
+  let teamMember = $derived(adminState?.teamMember ?? null);
 
   // Helper to check capabilities safely
-  const hasCap = (cap) => adminState?.hasCap?.(cap) ?? false;
+  function hasCap(cap) {
+    try {
+      return adminState?.hasCap?.(cap) ?? false;
+    } catch {
+      return false;
+    }
+  }
 
   // Derived data
   const dbSummary = $derived(databaseHealth?.summary || {});

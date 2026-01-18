@@ -1,5 +1,7 @@
 <script>
-  import {getContext} from 'svelte';
+  import {getContext, onMount} from 'svelte';
+  import {page} from '$app/stores';
+  import {goto} from '$app/navigation';
   import {formatDistanceToNow} from 'date-fns';
   import {PageHeader, Badge, Button, Card} from '$components';
 
@@ -8,6 +10,18 @@
 
   // Get admin state from context for capability checking
   const adminState = getContext('adminState');
+
+  // Success message from onboarding redirect
+  let successMessage = $state(null);
+
+  onMount(() => {
+    const onboarded = $page.url.searchParams.get('onboarded');
+    if (onboarded) {
+      successMessage = 'Onboarding workflow started. The new team member will receive their credentials via email.';
+      // Clear the URL param after showing
+      goto('/team', {replaceState: true});
+    }
+  });
 
   // Role badge variants
   const roleVariants = {
@@ -36,6 +50,13 @@
     {/if}
   {/snippet}
 </PageHeader>
+
+{#if successMessage}
+  <div class="success-banner">
+    <span>{successMessage}</span>
+    <button type="button" onclick={() => successMessage = null} class="dismiss-btn">Dismiss</button>
+  </div>
+{/if}
 
 <Card class="overflow-hidden p-0">
   <table class="data-table">
@@ -164,5 +185,17 @@
 
   .empty-text {
     @apply text-base04 mb-4;
+  }
+
+  .success-banner {
+    @apply flex items-center justify-between;
+    @apply mb-6 p-4 rounded-lg;
+    @apply bg-base0B/10 text-base0B border border-base0B/20;
+    @apply text-sm font-medium;
+  }
+
+  .dismiss-btn {
+    @apply text-base0B/80 hover:text-base0B underline text-sm;
+    @apply bg-transparent border-none cursor-pointer;
   }
 </style>
