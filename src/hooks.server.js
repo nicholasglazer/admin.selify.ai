@@ -55,7 +55,14 @@ export const handle = async ({event, resolve}) => {
       getAll: () => event.cookies.getAll(),
       setAll: (cookiesToSet) => {
         cookiesToSet.forEach(({name, value, options}) => {
-          // CRITICAL: Same domain as dash.selify.ai for shared SSO
+          // CRITICAL: Do NOT clear cookies on .selify.ai domain from admin
+          // This prevents admin from invalidating dash sessions when token refresh fails
+          if (!value || value === '' || options?.maxAge === 0) {
+            console.log(`[Admin] SKIPPING cookie clear for: ${name} (would invalidate SSO)`);
+            return; // Skip - don't propagate cookie clearing to shared domain
+          }
+
+          // Only SET cookies with actual values
           const cookieOptions = {
             ...options,
             path: '/',
