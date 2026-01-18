@@ -113,7 +113,16 @@
       <option value="disabled">Disabled</option>
     </select>
 
-    {#if filters.search || filters.targetApp || filters.category || filters.status}
+    <label class="push-filter">
+      <input
+        type="checkbox"
+        checked={filters.pushEnabled || false}
+        onchange={(e) => qaState.setFilter('pushEnabled', e.target.checked || null)}
+      />
+      <span>Push-Enabled Only</span>
+    </label>
+
+    {#if filters.search || filters.targetApp || filters.category || filters.status || filters.pushEnabled}
       <button class="clear-filters" onclick={() => qaState.clearFilters()}>
         Clear filters
       </button>
@@ -140,6 +149,16 @@
           <span class="spec-target">{spec.target_app}</span>
           {#if spec.category}
             <span class="spec-category">{spec.category}</span>
+          {/if}
+          {#if spec.run_on_push}
+            <span class="spec-push" title="Runs on git push to: {spec.trigger_on_repos?.join(', ') || 'configured repos'}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <line x1="3" x2="9" y1="12" y2="12" />
+                <line x1="15" x2="21" y1="12" y2="12" />
+              </svg>
+              Push
+            </span>
           {/if}
         </div>
 
@@ -244,6 +263,15 @@
     @apply focus:outline-none focus:ring-2 focus:ring-base0D/50;
   }
 
+  .push-filter {
+    @apply flex items-center gap-2 px-3 py-2 text-sm text-base05;
+    @apply cursor-pointer hover:text-base06 transition-colors;
+  }
+
+  .push-filter input {
+    @apply w-4 h-4 accent-base0E rounded;
+  }
+
   .clear-filters {
     @apply px-3 py-2 text-sm text-base08 hover:text-base08/80;
     @apply transition-colors;
@@ -290,6 +318,11 @@
 
   .spec-category {
     @apply text-xs px-2 py-0.5 bg-base0D/20 text-base0D rounded;
+  }
+
+  .spec-push {
+    @apply flex items-center gap-1 text-xs px-2 py-0.5;
+    @apply bg-base0E/20 text-base0E rounded;
   }
 
   .spec-footer {

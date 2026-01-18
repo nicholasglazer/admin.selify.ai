@@ -14,9 +14,11 @@
   let specName = $state('');
   let selectedCategory = $state('other');
   let tagsInput = $state('');
+  let runOnPush = $state(false);
 
   const targetApps = qaState.targetApps;
   const categories = qaState.categories;
+  const gitRepos = qaState.gitRepos;
 
   // Example prompts for inspiration
   const examplePrompts = [
@@ -51,12 +53,26 @@
       .map((t) => t.trim())
       .filter((t) => t);
 
-    const spec = await qaState.saveGeneratedSpec(specName, selectedCategory, tags);
+    // Create the spec with push trigger if enabled
+    const specData = {
+      name: specName,
+      nl_spec: nlCreator.nlSpec,
+      target_app: nlCreator.targetApp,
+      category: selectedCategory,
+      tags,
+      generated_code: nlCreator.generatedCode,
+      generated_by: 'deepseek',
+      run_on_push: runOnPush
+    };
+
+    const spec = await qaState.createSpec(specData);
 
     if (spec) {
+      qaState.closeNLCreator();
       specName = '';
       selectedCategory = 'other';
       tagsInput = '';
+      runOnPush = false;
     }
   }
 
@@ -220,6 +236,25 @@ Example: User logs in with valid credentials, navigates to the wardrobe page, up
                 bind:value={tagsInput}
               />
             </div>
+
+            <!-- Push Trigger Toggle -->
+            <label class="push-toggle">
+              <input
+                type="checkbox"
+                bind:checked={runOnPush}
+              />
+              <div class="push-toggle-content">
+                <span class="push-toggle-label">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <line x1="3" x2="9" y1="12" y2="12" />
+                    <line x1="15" x2="21" y1="12" y2="12" />
+                  </svg>
+                  Run on Git Push
+                </span>
+                <span class="push-toggle-hint">Automatically run when code is pushed to repo</span>
+              </div>
+            </label>
           </div>
         </div>
       {/if}
@@ -384,5 +419,31 @@ Example: User logs in with valid credentials, navigates to the wardrobe page, up
     @apply flex items-center gap-2 px-4 py-2;
     @apply bg-base0B text-white rounded-lg font-medium;
     @apply hover:bg-base0B/90 transition-colors;
+  }
+
+  .push-toggle {
+    @apply flex items-start gap-3 p-3 bg-base02/50 rounded-lg;
+    @apply cursor-pointer hover:bg-base02 transition-colors;
+    @apply col-span-2;
+  }
+
+  .push-toggle input {
+    @apply w-4 h-4 mt-0.5 accent-base0E;
+  }
+
+  .push-toggle-content {
+    @apply flex flex-col;
+  }
+
+  .push-toggle-label {
+    @apply flex items-center gap-2 text-sm text-base05;
+  }
+
+  .push-toggle-label svg {
+    @apply text-base0E;
+  }
+
+  .push-toggle-hint {
+    @apply text-xs text-base04 mt-0.5;
   }
 </style>

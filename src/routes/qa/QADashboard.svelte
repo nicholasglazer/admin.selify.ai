@@ -11,7 +11,14 @@
   let autoHealedToday = $derived(qaState.autoHealedToday);
   let recentRuns = $derived(qaState.recentRuns);
 
+  // Push trigger metrics
+  let pushEnabledSpecs = $derived(qaState.pushEnabledSpecs);
+  let specsByRepo = $derived(qaState.specsByRepo);
+  let recentPushRuns = $derived(qaState.recentPushRuns);
+  let pushPassRate = $derived(qaState.pushPassRate);
+
   const targetApps = qaState.targetApps;
+  const gitRepos = qaState.gitRepos;
 
   // Status colors
   const statusColors = {
@@ -45,6 +52,66 @@
 </script>
 
 <div class="dashboard-grid">
+  <!-- Git Push Integration -->
+  <Card class="push-card">
+    <h3 class="card-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="title-icon">
+        <circle cx="12" cy="12" r="3" />
+        <line x1="3" x2="9" y1="12" y2="12" />
+        <line x1="15" x2="21" y1="12" y2="12" />
+        <path d="M12 3v6M12 15v6" />
+      </svg>
+      Git Push Testing
+    </h3>
+    <div class="push-stats">
+      <div class="push-stat-row">
+        <div class="push-stat">
+          <span class="push-value">{pushEnabledSpecs}</span>
+          <span class="push-label">Push-Enabled Specs</span>
+        </div>
+        <div class="push-stat">
+          <span class="push-value rate">{pushPassRate}%</span>
+          <span class="push-label">Push Pass Rate</span>
+        </div>
+      </div>
+    </div>
+
+    {#if Object.keys(specsByRepo).length > 0}
+      <div class="repo-list">
+        <span class="repo-header">Specs by Repository</span>
+        {#each Object.entries(specsByRepo) as [repo, count]}
+          <div class="repo-row">
+            <span class="repo-name">{repo}</span>
+            <span class="repo-count">{count} specs</span>
+          </div>
+        {/each}
+      </div>
+    {:else}
+      <div class="push-empty">
+        <p>No specs configured for push triggers yet.</p>
+        <p class="push-hint">Enable "Run on Push" in spec settings to test on every git push.</p>
+      </div>
+    {/if}
+
+    {#if recentPushRuns?.length > 0}
+      <div class="push-runs">
+        <span class="runs-header">Recent Push Runs</span>
+        {#each recentPushRuns.slice(0, 3) as run}
+          <button class="push-run-item" onclick={() => qaState.selectRun(run)}>
+            <div class="run-info">
+              <span class="run-repo">{run.git_repo}</span>
+              <span class="run-branch">/{run.git_branch}</span>
+            </div>
+            <div class="run-result">
+              <Badge variant={statusColors[run.status]} size="sm">{run.status}</Badge>
+              <span class="run-stats">{run.passed_count}/{run.total_specs}</span>
+            </div>
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </Card>
+
   <!-- Coverage by Target App -->
   <Card class="coverage-card">
     <h3 class="card-title">Coverage by Target</h3>
@@ -310,7 +377,104 @@
     @apply text-sm;
   }
 
+  /* Push Card */
+  .card-title {
+    @apply flex items-center gap-2;
+  }
+
+  .title-icon {
+    @apply text-base0D;
+  }
+
+  .push-stats {
+    @apply mb-4;
+  }
+
+  .push-stat-row {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .push-stat {
+    @apply flex flex-col items-center p-3 bg-base02/50 rounded-lg;
+  }
+
+  .push-value {
+    @apply text-2xl font-bold text-base06;
+  }
+
+  .push-value.rate {
+    @apply text-base0B;
+  }
+
+  .push-label {
+    @apply text-xs text-base04 mt-1;
+  }
+
+  .repo-list {
+    @apply flex flex-col gap-2 mb-4;
+  }
+
+  .repo-header,
+  .runs-header {
+    @apply text-xs font-medium text-base04 uppercase tracking-wide mb-1;
+  }
+
+  .repo-row {
+    @apply flex justify-between items-center p-2 bg-base02/30 rounded;
+  }
+
+  .repo-name {
+    @apply text-sm text-base05 font-mono;
+  }
+
+  .repo-count {
+    @apply text-xs text-base04;
+  }
+
+  .push-empty {
+    @apply text-center py-4;
+  }
+
+  .push-empty p {
+    @apply text-sm text-base04;
+  }
+
+  .push-hint {
+    @apply text-xs text-base04/70 mt-1;
+  }
+
+  .push-runs {
+    @apply flex flex-col gap-2 pt-3 border-t border-base02;
+  }
+
+  .push-run-item {
+    @apply w-full flex justify-between items-center p-2 rounded-lg;
+    @apply bg-base02/30 hover:bg-base02 transition-colors cursor-pointer;
+    @apply text-left;
+  }
+
+  .run-info {
+    @apply flex items-center text-sm;
+  }
+
+  .run-repo {
+    @apply text-base05 font-mono;
+  }
+
+  .run-branch {
+    @apply text-base04;
+  }
+
+  .run-result {
+    @apply flex items-center gap-2;
+  }
+
+  .run-stats {
+    @apply text-xs text-base04 font-mono;
+  }
+
   /* Global card styling override */
+  :global(.push-card),
   :global(.coverage-card),
   :global(.heal-card),
   :global(.flaky-card),

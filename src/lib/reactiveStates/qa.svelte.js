@@ -49,7 +49,8 @@ export class QAReactiveState {
     targetApp: null,
     category: null,
     status: null,
-    tags: []
+    tags: [],
+    pushEnabled: null
   });
 
   // NL Test Creator state
@@ -174,6 +175,10 @@ export class QAReactiveState {
 
     if (this.filters.tags?.length > 0) {
       filtered = filtered.filter((s) => this.filters.tags.some((tag) => s.tags?.includes(tag)));
+    }
+
+    if (this.filters.pushEnabled) {
+      filtered = filtered.filter((s) => s.run_on_push === true);
     }
 
     return filtered;
@@ -593,7 +598,8 @@ export class QAReactiveState {
       targetApp: null,
       category: null,
       status: null,
-      tags: []
+      tags: [],
+      pushEnabled: null
     };
   }
 
