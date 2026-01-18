@@ -1,7 +1,7 @@
 <script>
   import '../app.css';
   import {setContext, onMount} from 'svelte';
-  import {AdminSidebar, Toaster, ThemeToggle} from '$components';
+  import {AdminSidebar, Toaster} from '$components';
   import {getThemeState, getAdminState, getToastState} from '$lib/reactiveStates';
 
   let {data, children} = $props();
@@ -38,18 +38,6 @@
   {/if}
 
   <main class="main-content">
-    <!-- Top bar with theme toggle -->
-    <header class="top-bar">
-      <div class="top-bar-content">
-        <div class="top-bar-left">
-          <!-- Breadcrumb or page title could go here -->
-        </div>
-        <div class="top-bar-right">
-          <ThemeToggle />
-        </div>
-      </div>
-    </header>
-
     <div class="content-container">
       {@render children()}
     </div>
@@ -71,26 +59,7 @@
     @apply flex-1 flex flex-col overflow-y-auto;
   }
 
-  .top-bar {
-    @apply sticky top-0 z-10;
-    @apply bg-base00/80 backdrop-blur-sm;
-    @apply border-b border-border;
-  }
-
-  .top-bar-content {
-    @apply flex items-center justify-between;
-    @apply max-w-6xl mx-auto px-6 py-3;
-  }
-
-  .top-bar-left {
-    @apply flex items-center gap-4;
-  }
-
-  .top-bar-right {
-    @apply flex items-center gap-3;
-  }
-
   .content-container {
-    @apply flex-1 max-w-6xl mx-auto p-6 w-full;
+    @apply flex-1 grid p-6 w-full;
   }
 </style>
