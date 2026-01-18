@@ -116,24 +116,29 @@ async function decrypt(encryptedText: string): Promise<string> {
 
 /**
  * Get all email accounts accessible by a user
- * Includes both personal and shared workspace accounts
+ * Team accounts are stored in internal.team_email_accounts
+ * Auto-provisioned during team onboarding
  */
 export async function getUserEmailAccounts(
   supabase: ReturnType<typeof createClient>,
-  userId: string,
-  workspaceId?: string
+  userId: string
 ): Promise<EmailAccount[]> {
   const accounts: EmailAccount[] = [];
 
-  // Get personal accounts
-  const {data: personalAccounts} = await supabase
-    .from('user_email_accounts')
+  // Get team email accounts from internal schema
+  const {data: teamAccounts, error} = await supabase
+    .schema('internal')
+    .from('team_email_accounts')
     .select('*')
     .eq('user_id', userId)
     .eq('is_active', true);
 
-  if (personalAccounts) {
-    for (const acc of personalAccounts) {
+  if (error) {
+    console.error('[Credentials] Failed to fetch team accounts:', error.message);
+  }
+
+  if (teamAccounts) {
+    for (const acc of teamAccounts) {
       accounts.push({
         id: acc.id,
         email: acc.email,
@@ -149,42 +154,6 @@ export async function getUserEmailAccounts(
     }
   }
 
-  // Get shared workspace accounts (if workspace provided)
-  if (workspaceId) {
-    const {data: sharedAccounts} = await supabase
-      .from('workspace_email_accounts')
-      .select(
-        `
-        *,
-        workspace_email_account_members!inner(
-          user_id,
-          role
-        )
-      `
-      )
-      .eq('workspace_id', workspaceId)
-      .eq('is_active', true)
-      .eq('workspace_email_account_members.user_id', userId);
-
-    if (sharedAccounts) {
-      for (const acc of sharedAccounts) {
-        const member = acc.workspace_email_account_members[0];
-        accounts.push({
-          id: acc.id,
-          email: acc.email,
-          displayName: acc.display_name || acc.email,
-          type: 'shared',
-          role: member.role,
-          imapHost: acc.imap_host,
-          imapPort: acc.imap_port,
-          smtpHost: acc.smtp_host,
-          smtpPort: acc.smtp_port,
-          color: acc.color
-        });
-      }
-    }
-  }
-
   return accounts;
 }
 
@@ -196,42 +165,26 @@ export async function getAccountCredentials(
   userId: string,
   accountId: string
 ): Promise<EmailCredentials | null> {
-  // Try personal account first
-  const {data: personal} = await supabase
-    .from('user_email_accounts')
+  // Get from internal schema
+  const {data: account, error} = await supabase
+    .schema('internal')
+    .from('team_email_accounts')
     .select('*')
     .eq('id', accountId)
     .eq('user_id', userId)
     .single();
 
-  if (personal) {
-    return {
-      email: personal.email,
-      password: await decrypt(personal.password_encrypted),
-      imap: {host: personal.imap_host, port: personal.imap_port},
-      smtp: {host: personal.smtp_host, port: personal.smtp_port}
-    };
+  if (error) {
+    console.error('[Credentials] Failed to get account:', error.message);
+    return null;
   }
 
-  // Try shared account
-  const {data: shared} = await supabase
-    .from('workspace_email_accounts')
-    .select(
-      `
-      *,
-      workspace_email_account_members!inner(user_id)
-    `
-    )
-    .eq('id', accountId)
-    .eq('workspace_email_account_members.user_id', userId)
-    .single();
-
-  if (shared) {
+  if (account) {
     return {
-      email: shared.email,
-      password: await decrypt(shared.password_encrypted),
-      imap: {host: shared.imap_host, port: shared.imap_port},
-      smtp: {host: shared.smtp_host, port: shared.smtp_port}
+      email: account.email,
+      password: await decrypt(account.password_encrypted),
+      imap: {host: account.imap_host, port: account.imap_port},
+      smtp: {host: account.smtp_host, port: account.smtp_port}
     };
   }
 
@@ -239,7 +192,8 @@ export async function getAccountCredentials(
 }
 
 /**
- * Store credentials for a new personal email account
+ * Store credentials for a new team email account
+ * Uses internal.team_email_accounts table
  */
 export async function storePersonalEmailAccount(
   supabase: ReturnType<typeof createClient>,
@@ -259,8 +213,9 @@ export async function storePersonalEmailAccount(
     const encryptedPassword = await encrypt(account.password);
 
     const {data, error} = await supabase
-      .from('user_email_accounts')
-      .insert({
+      .schema('internal')
+      .from('team_email_accounts')
+      .upsert({
         user_id: userId,
         email: account.email,
         password_encrypted: encryptedPassword,
@@ -271,7 +226,7 @@ export async function storePersonalEmailAccount(
         smtp_port: account.smtpPort,
         color: account.color,
         is_active: true
-      })
+      }, {onConflict: 'user_id,email'})
       .select('id')
       .single();
 
