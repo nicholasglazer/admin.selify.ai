@@ -11,15 +11,21 @@
  */
 
 import {createClient} from '@supabase/supabase-js';
+import {env} from '$env/dynamic/private';
 import type {EmailAccount, EmailCredentials} from '../types';
 
 // =============================================================================
 // Encryption (using Web Crypto API)
 // =============================================================================
 
-const ENCRYPTION_KEY = process.env.EMAIL_ENCRYPTION_KEY;
-if (!ENCRYPTION_KEY) {
-  console.error('[Credentials] EMAIL_ENCRYPTION_KEY environment variable is required for email password encryption');
+// Get encryption key lazily to avoid issues at module load time
+function getEncryptionKey(): string {
+  const key = env.EMAIL_ENCRYPTION_KEY;
+  if (!key) {
+    console.error('[Credentials] EMAIL_ENCRYPTION_KEY environment variable is required for email password encryption');
+    throw new Error('EMAIL_ENCRYPTION_KEY not configured');
+  }
+  return key;
 }
 
 /**
@@ -32,7 +38,7 @@ async function encrypt(text: string): Promise<string> {
   // Derive key from secret
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(ENCRYPTION_KEY),
+    encoder.encode(getEncryptionKey()),
     {name: 'PBKDF2'},
     false,
     ['deriveBits', 'deriveKey']
@@ -79,7 +85,7 @@ async function decrypt(encryptedText: string): Promise<string> {
   // Derive key
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(ENCRYPTION_KEY),
+    encoder.encode(getEncryptionKey()),
     {name: 'PBKDF2'},
     false,
     ['deriveBits', 'deriveKey']

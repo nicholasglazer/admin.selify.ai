@@ -10,7 +10,10 @@
   import {X, Mail, CheckCircle, CircleX, RefreshCw, ChevronDown} from '$components/icons';
   import {Button} from '@miozu/jera';
 
-  let {open = false, onClose, onSuccess} = $props();
+  let {open = false, onClose, onSuccess, teamMemberEmail = ''} = $props();
+
+  // Track if team email was pre-filled (for showing helpful message)
+  let isTeamEmailPrefilled = $derived(teamMemberEmail && teamMemberEmail.endsWith('@selify.ai'));
 
   // Provider presets
   const PROVIDERS = [
@@ -117,6 +120,15 @@
       if (provider.id === 'custom') {
         showAdvanced = true;
       }
+    }
+  });
+
+  // Pre-fill team member email when modal opens
+  $effect(() => {
+    if (open && teamMemberEmail && teamMemberEmail.endsWith('@selify.ai')) {
+      formData.email = teamMemberEmail;
+      formData.displayName = teamMemberEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      selectedProvider = 'mxroute'; // MXRoute is the provider for @selify.ai
     }
   });
 
@@ -284,6 +296,14 @@
           {/if}
         </div>
 
+        <!-- Team member info banner -->
+        {#if isTeamEmailPrefilled}
+          <div class="team-info-banner">
+            <span class="team-badge">Team Account</span>
+            <p>Your @selify.ai email is pre-configured. Enter the password from your onboarding email.</p>
+          </div>
+        {/if}
+
         <!-- Email & Password -->
         <div class="form-section">
           <div class="form-row">
@@ -295,6 +315,8 @@
                 bind:value={formData.email}
                 placeholder="you@example.com"
                 autocomplete="email"
+                readonly={isTeamEmailPrefilled}
+                class:readonly={isTeamEmailPrefilled}
               />
             </div>
           </div>
@@ -306,7 +328,7 @@
                 type="password"
                 id="password"
                 bind:value={formData.password}
-                placeholder="Enter your email password"
+                placeholder={isTeamEmailPrefilled ? "Password from onboarding email" : "Enter your email password"}
                 autocomplete="current-password"
               />
             </div>
@@ -504,6 +526,24 @@
 
   .provider-note {
     @apply text-xs text-base09 mt-2 p-2 rounded bg-base09/10;
+  }
+
+  .team-info-banner {
+    @apply flex items-center gap-3 p-4 rounded-lg;
+    @apply bg-base0D/10 border border-base0D/30;
+  }
+
+  .team-badge {
+    @apply px-2 py-1 text-xs font-medium rounded-full;
+    @apply bg-base0D text-white whitespace-nowrap;
+  }
+
+  .team-info-banner p {
+    @apply text-sm text-base06 m-0;
+  }
+
+  .form-field input.readonly {
+    @apply bg-base02/50 text-base05 cursor-not-allowed;
   }
 
   .form-row {

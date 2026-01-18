@@ -17,7 +17,7 @@
   import {invalidateAll} from '$app/navigation';
   import {createMailState} from '$features/mail/state/mailState.svelte.js';
   import {useKeyboardNav} from '$features/mail/state/useKeyboardNav.svelte.js';
-  import {Plus, Settings} from '$components/icons';
+  import {Plus} from '$components/icons';
   import {Button} from '@miozu/jera';
   import AddEmailAccountModal from '$features/mail/components/AddEmailAccountModal.svelte';
 
@@ -39,10 +39,8 @@
   // Check if we're on the webmail subdomain (for link generation)
   let isSubdomain = $derived(data?.isWebmailSubdomain || false);
 
-  // Settings link - goes to dash.selify.ai for settings
-  let settingsHref = $derived(
-    isSubdomain ? 'https://dash.selify.ai/settings/email-accounts' : '/settings/email-accounts'
-  );
+  // Team member email for auto-provisioning
+  let teamMemberEmail = $derived(data?.teamMemberEmail || '');
 
   // Create reactive mail state - deferred initialization
   let mail = $state(null);
@@ -151,17 +149,10 @@
           Connect your email accounts to get started. You can add personal accounts or shared team
           mailboxes.
         </p>
-        {#if isSubdomain}
-          <Button variant="primary" onclick={() => (showAddAccount = true)}>
+        <Button variant="primary" onclick={() => (showAddAccount = true)}>
             <Plus size={18} />
             Add Email Account
           </Button>
-        {:else}
-          <Button variant="primary" href="/settings/email-accounts">
-            <Plus size={18} />
-            Add Email Account
-          </Button>
-        {/if}
       </div>
     </div>
   {:else if componentsLoaded && mail}
@@ -176,14 +167,9 @@
         >
           <kbd>?</kbd>
         </button>
-        {#if isSubdomain}
-          <Button variant="ghost sm" onclick={() => (showAddAccount = true)} title="Add account">
+        <Button variant="ghost sm" onclick={() => (showAddAccount = true)} title="Add account">
             <Plus size={18} />
           </Button>
-        {/if}
-        <Button variant="ghost sm" href={settingsHref} title="Email settings">
-          <Settings size={18} />
-        </Button>
       </div>
     </header>
 
@@ -225,7 +211,7 @@
     </div>
   {/if}
 
-  <!-- Add Account Modal (for subdomain) -->
+  <!-- Add Account Modal -->
   <AddEmailAccountModal
     open={showAddAccount}
     onClose={() => (showAddAccount = false)}
@@ -234,6 +220,7 @@
       // Reload accounts using SvelteKit's invalidation
       await invalidateAll();
     }}
+    {teamMemberEmail}
   />
 </div>
 
