@@ -50,57 +50,64 @@ export const handle = async ({event, resolve}) => {
   event.locals.supabaseAnonKey = publicEnv.PUBLIC_SUPABASE_ANON_KEY;
 
   // Create Supabase client with SSO cookie configuration
-  event.locals.supabase = createServerClient(publicEnv.PUBLIC_SUPABASE_URL, publicEnv.PUBLIC_SUPABASE_ANON_KEY, {
-    cookies: {
-      getAll: () => event.cookies.getAll(),
-      setAll: (cookiesToSet) => {
-        cookiesToSet.forEach(({name, value, options}) => {
-          // CRITICAL: Do NOT clear cookies on .selify.ai domain from admin
-          // This prevents admin from invalidating dash sessions when token refresh fails
-          if (!value || value === '' || options?.maxAge === 0) {
-            console.log(`[Admin] SKIPPING cookie clear for: ${name} (would invalidate SSO)`);
-            return; // Skip - don't propagate cookie clearing to shared domain
-          }
+  try {
+    event.locals.supabase = createServerClient(publicEnv.PUBLIC_SUPABASE_URL, publicEnv.PUBLIC_SUPABASE_ANON_KEY, {
+      cookies: {
+        getAll: () => event.cookies.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({name, value, options}) => {
+            // CRITICAL: Do NOT clear cookies on .selify.ai domain from admin
+            // This prevents admin from invalidating dash sessions when token refresh fails
+            if (!value || value === '' || options?.maxAge === 0) {
+              console.log(`[Admin] SKIPPING cookie clear for: ${name} (would invalidate SSO)`);
+              return; // Skip - don't propagate cookie clearing to shared domain
+            }
 
-          // Only SET cookies with actual values
-          const cookieOptions = {
-            ...options,
-            path: '/',
-            domain: '.selify.ai', // Share session across *.selify.ai
-            sameSite: 'lax',
-            secure: true
-          };
+            // Only SET cookies with actual values
+            const cookieOptions = {
+              ...options,
+              path: '/',
+              domain: '.selify.ai', // Share session across *.selify.ai
+              sameSite: 'lax',
+              secure: true
+            };
 
-          if (name.includes('sb-')) {
-            console.log(`[Admin] Setting cookie: ${name.substring(0, 20)}... domain=${cookieOptions.domain}`);
-          }
+            if (name.includes('sb-')) {
+              console.log(`[Admin] Setting cookie: ${name.substring(0, 20)}... domain=${cookieOptions.domain}`);
+            }
 
-          event.cookies.set(name, value, cookieOptions);
-        });
+            event.cookies.set(name, value, cookieOptions);
+          });
+        }
       }
-    }
-  });
+    });
+  } catch (e) {
+    console.error('[Admin] Failed to create Supabase client:', e?.message);
+    event.locals.supabase = null;
+  }
 
   /**
    * Get session - simplified to avoid triggering session invalidation
-   *
-   * IMPORTANT: We don't call getUser() here because it can trigger token
-   * refresh which may clear cookies across subdomains. For admin panel,
-   * we trust the session from getSession() which is sufficient for auth checks.
-   * Actual Supabase API calls will validate the JWT anyway.
    */
   event.locals.safeGetSession = async () => {
-    const {
-      data: {session}
-    } = await event.locals.supabase.auth.getSession();
-
-    if (!session) {
+    if (!event.locals.supabase) {
       return {session: null, user: null};
     }
 
-    // Use user from session instead of calling getUser()
-    // This prevents potential token refresh issues that could clear cookies
-    return {session, user: session.user};
+    try {
+      const {
+        data: {session}
+      } = await event.locals.supabase.auth.getSession();
+
+      if (!session) {
+        return {session: null, user: null};
+      }
+
+      return {session, user: session.user};
+    } catch (e) {
+      console.error('[Admin] Failed to get session:', e?.message);
+      return {session: null, user: null};
+    }
   };
 
   // Get session
