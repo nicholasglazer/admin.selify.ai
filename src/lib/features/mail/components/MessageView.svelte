@@ -8,7 +8,7 @@
    * - Attachments
    * - Reply/Forward/Archive/Delete actions
    */
-  import DOMPurify from 'isomorphic-dompurify';
+  import {browser} from '$app/environment';
   import {format} from 'date-fns';
   import {
     Reply,
@@ -74,10 +74,18 @@
   let ccRecipients = $derived(mail.selectedMessage?.cc || []);
   let hasMoreRecipients = $derived(recipients.length + (ccRecipients?.length || 0) > 3);
 
-  // Sanitize HTML content to prevent XSS
-  let sanitizedHtml = $derived(
-    mail.selectedMessage?.html ? DOMPurify.sanitize(mail.selectedMessage.html) : ''
-  );
+  // Sanitize HTML content to prevent XSS (client-side only)
+  let sanitizedHtml = $state('');
+
+  $effect(() => {
+    if (browser && mail.selectedMessage?.html) {
+      import('dompurify').then(({ default: DOMPurify }) => {
+        sanitizedHtml = DOMPurify.sanitize(mail.selectedMessage.html);
+      });
+    } else {
+      sanitizedHtml = '';
+    }
+  });
 </script>
 
 <article class="message-view {className}">

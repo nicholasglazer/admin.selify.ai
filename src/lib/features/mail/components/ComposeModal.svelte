@@ -9,7 +9,7 @@
    * - Account selector for shared mailboxes
    * - Auto-save drafts
    */
-  import DOMPurify from 'isomorphic-dompurify';
+  import {browser} from '$app/environment';
   import {X, Paperclip, Send, Trash, Minimize2, Maximize2, ChevronDown} from '$components/icons';
   import {Button} from '@miozu/jera';
   import {Badge} from '@miozu/jera';
@@ -117,10 +117,18 @@
     mail.accounts.find(a => a.id === mail.composeDraft?.accountId) || mail.activeAccount
   );
 
-  // Sanitize draft body for display
-  let sanitizedBody = $derived(
-    mail.composeDraft?.body ? DOMPurify.sanitize(mail.composeDraft.body) : ''
-  );
+  // Sanitize draft body for display (client-side only)
+  let sanitizedBody = $state('');
+
+  $effect(() => {
+    if (browser && mail.composeDraft?.body) {
+      import('dompurify').then(({ default: DOMPurify }) => {
+        sanitizedBody = DOMPurify.sanitize(mail.composeDraft.body);
+      });
+    } else {
+      sanitizedBody = mail.composeDraft?.body || '';
+    }
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
