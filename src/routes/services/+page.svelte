@@ -4,9 +4,14 @@
   import {Tabs} from '@miozu/jera';
 
   let {data} = $props();
-  const {services, historyByService, dashboard, databaseHealth} = data;
 
   const adminState = getContext('adminState');
+
+  // Derived from data to handle updates
+  let services = $derived(data.services || []);
+  let historyByService = $derived(data.historyByService || {});
+  let dashboard = $derived(data.dashboard);
+  let databaseHealth = $derived(data.databaseHealth);
 
   let expandedService = $state(null);
   let activeTab = $state('overview');

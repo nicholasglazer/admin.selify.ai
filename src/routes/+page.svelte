@@ -2,10 +2,18 @@
   import {getContext} from 'svelte';
 
   let {data} = $props();
-  const {dashboard, databaseHealth, teamCount, workspaceCount} = data;
 
   const adminState = getContext('adminState');
-  let teamMember = $derived(adminState.teamMember);
+
+  // Derived from data to handle updates
+  let dashboard = $derived(data.dashboard);
+  let databaseHealth = $derived(data.databaseHealth);
+  let teamCount = $derived(data.teamCount);
+  let workspaceCount = $derived(data.workspaceCount);
+  let teamMember = $derived(adminState?.teamMember);
+
+  // Helper to check capabilities safely
+  const hasCap = (cap) => adminState?.hasCap?.(cap) ?? false;
 
   // Derived data
   const dbSummary = $derived(databaseHealth?.summary || {});
@@ -58,7 +66,7 @@
 
   <!-- Primary Metrics -->
   <section class="metrics">
-    {#if adminState.hasCap('ops.services.view')}
+    {#if hasCap('ops.services.view')}
       <a href="/services" class="metric-card">
         <div class="metric-header">
           <span class="metric-label">Services</span>
@@ -69,7 +77,7 @@
       </a>
     {/if}
 
-    {#if adminState.hasCap('ops.metrics.view')}
+    {#if hasCap('ops.metrics.view')}
       <a href="/database" class="metric-card">
         <div class="metric-header">
           <span class="metric-label">Cache</span>
@@ -90,7 +98,7 @@
       </div>
     {/if}
 
-    {#if adminState.hasCap('ops.errors.view')}
+    {#if hasCap('ops.errors.view')}
       <a href="/errors" class="metric-card" class:has-errors={hasErrors}>
         <div class="metric-header">
           <span class="metric-label">Errors</span>
@@ -108,21 +116,21 @@
   <section class="stats">
     <h2>Overview</h2>
     <div class="stats-grid">
-      {#if adminState.hasCap('team.view')}
+      {#if hasCap('team.view')}
         <a href="/team" class="stat">
           <span class="stat-value">{teamCount}</span>
           <span class="stat-label">Team</span>
         </a>
       {/if}
 
-      {#if adminState.hasCap('admin.workspaces.view')}
+      {#if hasCap('admin.workspaces.view')}
         <a href="/workspaces" class="stat">
           <span class="stat-value">{workspaceCount}</span>
           <span class="stat-label">Workspaces</span>
         </a>
       {/if}
 
-      {#if adminState.hasCap('ops.metrics.view')}
+      {#if hasCap('ops.metrics.view')}
         <div class="stat">
           <span class="stat-value">{dbSummary.total_tables || 0}</span>
           <span class="stat-label">Tables</span>
@@ -140,28 +148,28 @@
   <section class="nav-section">
     <h2>Navigate</h2>
     <div class="nav-grid">
-      {#if adminState.hasCap('ops.services.view')}
+      {#if hasCap('ops.services.view')}
         <a href="/services" class="nav-item">
           <span class="nav-title">Ops Hub</span>
           <span class="nav-arrow">→</span>
         </a>
       {/if}
 
-      {#if adminState.hasCap('ops.tasks.view')}
+      {#if hasCap('ops.tasks.view')}
         <a href="/pm" class="nav-item">
           <span class="nav-title">PM Board</span>
           <span class="nav-arrow">→</span>
         </a>
       {/if}
 
-      {#if adminState.hasCap('ops.qa.view')}
+      {#if hasCap('ops.qa.view')}
         <a href="/qa" class="nav-item">
           <span class="nav-title">QA Dashboard</span>
           <span class="nav-arrow">→</span>
         </a>
       {/if}
 
-      {#if adminState.hasCap('team.invite')}
+      {#if hasCap('team.invite')}
         <a href="/team/onboard" class="nav-item">
           <span class="nav-title">Onboard Member</span>
           <span class="nav-arrow">→</span>
@@ -171,7 +179,7 @@
   </section>
 
   <!-- External Links -->
-  {#if adminState.hasCap('ops.services.view')}
+  {#if hasCap('ops.services.view')}
     <section class="external">
       <h2>External</h2>
       <div class="external-row">

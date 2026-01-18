@@ -18,12 +18,22 @@ export const load = async ({locals, parent, fetch}) => {
 
   const supabase = locals.supabase;
 
+  // Helper to safely execute supabase queries
+  const safeQuery = async (queryFn) => {
+    try {
+      return await queryFn();
+    } catch (e) {
+      console.error('[Services] Query failed:', e?.message);
+      return {data: null, error: e};
+    }
+  };
+
   // Fetch all data in parallel
   const [healthResponse, historyResponse, dashboardResponse, databaseHealthResult] = await Promise.all([
     fetch(`${apiBaseUrl}/api/ops/health`, {headers}).catch(() => null),
     fetch(`${apiBaseUrl}/api/ops/health/history?hours=24&bucket_minutes=5`, {headers}).catch(() => null),
     fetch(`${apiBaseUrl}/api/ops/dashboard`, {headers}).catch(() => null),
-    supabase.schema('internal').rpc('get_database_health').catch(() => ({data: null, error: 'Failed to fetch'}))
+    supabase ? safeQuery(() => supabase.schema('internal').rpc('get_database_health')) : Promise.resolve({data: null})
   ]);
 
   // Parse responses
