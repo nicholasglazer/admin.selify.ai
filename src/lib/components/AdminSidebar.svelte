@@ -18,7 +18,8 @@
     AlertCircle,
     Terminal,
     BarChart,
-    TestTube
+    TestTube,
+    Database
   } from './icons';
 
   let {teamMember, capabilities} = $props();
@@ -37,10 +38,11 @@
       {label: 'Feedback', href: '/feedback', icon: MessageSquare, show: hasCap('ops.feedback.view')},
       {label: 'Team', href: '/team', icon: Users, show: hasCap('team.view')},
       {label: 'Workspaces', href: '/workspaces', icon: Building, show: hasCap('admin.workspaces.view')},
-      {label: 'Services', href: '/services', icon: Server, show: hasCap('ops.services.view')},
+      {label: 'Ops Hub', href: '/services', icon: Server, show: hasCap('ops.services.view')},
       {label: 'Errors', href: '/errors', icon: AlertCircle, show: hasCap('ops.errors.view')},
       {label: 'Logs', href: '/logs', icon: Terminal, show: hasCap('ops.logs.view')},
-      {label: 'Metrics', href: '/metrics', icon: BarChart, show: hasCap('ops.metrics.view')}
+      {label: 'Metrics', href: '/metrics', icon: BarChart, show: hasCap('ops.metrics.view')},
+      {label: 'Database', href: '/database', icon: Database, show: hasCap('ops.metrics.view')}
     ];
   });
 

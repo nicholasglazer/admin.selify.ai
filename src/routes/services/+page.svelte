@@ -1,22 +1,28 @@
 <script>
   import {getContext} from 'svelte';
   import {ServiceHealthCard} from '$lib/components/ops';
-  import {Badge} from '$components';
+  import {Tabs} from '@miozu/jera';
 
   let {data} = $props();
-  const {services, historyByService, dashboard} = data;
+  const {services, historyByService, dashboard, databaseHealth} = data;
 
-  // Get admin state from context for capability checking
   const adminState = getContext('adminState');
 
-  // Track expanded cards
   let expandedService = $state(null);
+  let activeTab = $state('overview');
+
+  const tabs = [
+    {id: 'overview', label: 'Overview'},
+    {id: 'services', label: 'Services'},
+    {id: 'database', label: 'Database'},
+    {id: 'external', label: 'External'}
+  ];
 
   function toggleExpand(serviceName) {
     expandedService = expandedService === serviceName ? null : serviceName;
   }
 
-  // Count by status
+  // Computed stats
   const statusCounts = $derived(
     services.reduce((acc, s) => {
       acc[s.status] = (acc[s.status] || 0) + 1;
@@ -24,330 +30,614 @@
     }, {})
   );
 
-  // Dashboard stats
-  const errorStats = $derived(dashboard?.errors || {unresolved_count: 0, last_24h_count: 0});
-  const healthStats = $derived(dashboard?.health || {});
+  const healthStats = $derived({
+    healthy: dashboard?.health?.services_healthy || 0,
+    total: dashboard?.health?.services_total || 0,
+    uptime: dashboard?.health?.avg_uptime_24h || 0
+  });
 
-  // Refresh handler
-  async function handleRefresh() {
-    // Trigger SvelteKit to refetch data
-    location.reload();
-  }
+  const dbSummary = $derived(databaseHealth?.summary || {});
+  const dbLockStats = $derived(databaseHealth?.lock_stats || {});
+  const dbConnectionStates = $derived(databaseHealth?.connection_states || {});
+  const errorCount = $derived(dashboard?.errors?.unresolved_count || 0);
+
+  const allHealthy = $derived(statusCounts.healthy === services.length && services.length > 0);
 </script>
 
 <svelte:head>
-  <title>Service Health | Selify Admin</title>
+  <title>Ops Hub | Selify Admin</title>
 </svelte:head>
 
-<div class="services-page">
-  <header class="page-header">
+<div class="ops">
+  <!-- Header -->
+  <header class="header">
     <div>
-      <h1 class="page-title">Service Health</h1>
-      <p class="page-subtitle">
-        {services.length} services monitored
-        {#if healthStats.avg_uptime_24h}
-          <span class="uptime-badge">
-            {healthStats.avg_uptime_24h}% avg uptime
-          </span>
+      <h1>Operations</h1>
+      <div class="status-line">
+        <span class="status-dot" class:ok={allHealthy} class:warn={!allHealthy}></span>
+        <span class="status-text">
+          {#if allHealthy}All systems operational{:else}{healthStats.healthy}/{healthStats.total} healthy{/if}
+        </span>
+        {#if healthStats.uptime}
+          <span class="status-sep">·</span>
+          <span class="status-uptime">{healthStats.uptime}% uptime</span>
         {/if}
-      </p>
+      </div>
     </div>
-    <button class="btn-secondary" onclick={handleRefresh}>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="mr-2">
-        <path d="M14 8A6 6 0 1 1 8 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        <path d="M8 2V5L11 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      Refresh
-    </button>
   </header>
 
-  <!-- Status Summary -->
-  <div class="status-summary">
-    <div class="summary-card healthy">
-      <div class="summary-count">{statusCounts.healthy || 0}</div>
-      <div class="summary-label">Healthy</div>
+  <!-- Metric Strip -->
+  <div class="metric-strip">
+    <div class="metric">
+      <span class="metric-val">{healthStats.healthy}<span class="metric-dim">/{healthStats.total}</span></span>
+      <span class="metric-lbl">Services</span>
     </div>
-    <div class="summary-card degraded">
-      <div class="summary-count">{statusCounts.degraded || 0}</div>
-      <div class="summary-label">Degraded</div>
+    <div class="metric">
+      <span class="metric-val">{dbSummary.cache_hit_ratio || 0}<span class="metric-dim">%</span></span>
+      <span class="metric-lbl">Cache</span>
     </div>
-    <div class="summary-card unhealthy">
-      <div class="summary-count">{statusCounts.unhealthy || 0}</div>
-      <div class="summary-label">Unhealthy</div>
+    <div class="metric">
+      <span class="metric-val">{dbSummary.connections?.current || 0}<span class="metric-dim">/{dbSummary.connections?.max || 100}</span></span>
+      <span class="metric-lbl">Connections</span>
     </div>
-    <div class="summary-card errors">
-      <div class="summary-count">{errorStats.unresolved_count || 0}</div>
-      <div class="summary-label">Errors (24h)</div>
+    <div class="metric" class:has-error={errorCount > 0}>
+      <span class="metric-val">{errorCount}</span>
+      <span class="metric-lbl">Errors</span>
     </div>
   </div>
 
-  <!-- Services List -->
-  <section class="services-section">
-    <h2 class="section-title">Services</h2>
-    <div class="services-list">
-      {#each services as service}
-        <ServiceHealthCard
-          {service}
-          history={historyByService[service.name] || []}
-          expanded={expandedService === service.name}
-          onexpand={() => toggleExpand(service.name)}
-        />
-      {/each}
-    </div>
-  </section>
+  <!-- Tabs -->
+  <div class="tab-nav">
+    {#each tabs as tab}
+      <button
+        class="tab-btn"
+        class:active={activeTab === tab.id}
+        onclick={() => activeTab = tab.id}
+      >
+        {tab.label}
+      </button>
+    {/each}
+  </div>
 
-  <!-- Quick Actions -->
-  {#if adminState.hasCap('ops.services.restart')}
-    <section class="actions-section">
-      <h2 class="section-title">Quick Actions</h2>
-      <div class="actions-grid">
-        <button class="action-card" disabled>
-          <div class="action-icon">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M10 2v4m0 8v4M2 10h4m8 0h4M4.93 4.93l2.83 2.83m4.48 4.48l2.83 2.83M4.93 15.07l2.83-2.83m4.48-4.48l2.83-2.83"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
+  <!-- Content -->
+  <div class="content">
+    {#if activeTab === 'overview'}
+      <div class="overview">
+        <!-- Quick numbers -->
+        <div class="num-row">
+          <div class="num-item">
+            <span class="num-val">{dbSummary.database_size || '—'}</span>
+            <span class="num-lbl">Database</span>
           </div>
-          <div class="action-label">Run All Health Checks</div>
-        </button>
-        <button class="action-card" disabled>
-          <div class="action-icon warning">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2v8m0 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
+          <div class="num-item">
+            <span class="num-val">{dbSummary.total_tables || 0}</span>
+            <span class="num-lbl">Tables</span>
           </div>
-          <div class="action-label">Restart Unhealthy Services</div>
-        </button>
+          <div class="num-item">
+            <span class="num-val">{dbSummary.total_rls_policies || 0}</span>
+            <span class="num-lbl">Policies</span>
+          </div>
+          <div class="num-item">
+            <span class="num-val">{dbLockStats.total_locks || 0}</span>
+            <span class="num-lbl">Locks</span>
+          </div>
+          <div class="num-item" class:warn={dbLockStats.waiting > 0}>
+            <span class="num-val">{dbLockStats.waiting || 0}</span>
+            <span class="num-lbl">Waiting</span>
+          </div>
+        </div>
+
+        <!-- Services preview -->
+        <section class="section">
+          <h2>Services</h2>
+          <div class="service-table">
+            {#each services.slice(0, 8) as service}
+              <div class="service-row">
+                <span class="svc-status" class:ok={service.status === 'healthy'} class:err={service.status === 'unhealthy'}></span>
+                <span class="svc-name">{service.display_name || service.name}</span>
+                <span class="svc-time">{service.response_time_ms ?? '—'}ms</span>
+                <span class="svc-uptime">{service.uptime_24h ?? '—'}%</span>
+              </div>
+            {/each}
+          </div>
+          {#if services.length > 8}
+            <button class="more-btn" onclick={() => activeTab = 'services'}>
+              View all {services.length} →
+            </button>
+          {/if}
+        </section>
+
+        <!-- Connection states -->
+        <section class="section">
+          <h2>Connections</h2>
+          <div class="conn-row">
+            {#each Object.entries(dbConnectionStates) as [state, count]}
+              <div class="conn-item">
+                <span class="conn-state">{state || 'unknown'}</span>
+                <span class="conn-count">{count}</span>
+              </div>
+            {/each}
+          </div>
+        </section>
+
+        <!-- Quick links -->
+        <section class="section">
+          <h2>Navigate</h2>
+          <div class="link-row">
+            <a href="/database" class="quick-link">Database Health →</a>
+            <a href="/errors" class="quick-link">Error Tracking →</a>
+            <a href="/metrics" class="quick-link">Metrics →</a>
+            <a href="/logs" class="quick-link">Logs →</a>
+          </div>
+        </section>
       </div>
-    </section>
-  {/if}
 
-  <!-- External Monitoring Links -->
-  <section class="external-links">
-    <h2 class="section-title">External Monitoring</h2>
-    <div class="links-grid">
-      <a href="https://temporal.selify.ai" target="_blank" rel="noopener" class="link-card">
-        <div class="link-icon temporal">T</div>
-        <div class="link-content">
-          <div class="link-name">Temporal UI</div>
-          <div class="link-desc">Workflow monitoring</div>
+    {:else if activeTab === 'services'}
+      <div class="services-view">
+        <!-- Status counts -->
+        <div class="status-counts">
+          <div class="count-item ok">
+            <span class="count-val">{statusCounts.healthy || 0}</span>
+            <span class="count-lbl">Healthy</span>
+          </div>
+          <div class="count-item warn">
+            <span class="count-val">{statusCounts.degraded || 0}</span>
+            <span class="count-lbl">Degraded</span>
+          </div>
+          <div class="count-item err">
+            <span class="count-val">{statusCounts.unhealthy || 0}</span>
+            <span class="count-lbl">Unhealthy</span>
+          </div>
         </div>
-      </a>
-      <a href="https://metrics.selify.ai" target="_blank" rel="noopener" class="link-card">
-        <div class="link-icon signoz">S</div>
-        <div class="link-content">
-          <div class="link-name">SigNoz</div>
-          <div class="link-desc">Metrics, traces & logs</div>
+
+        <!-- Services list -->
+        <div class="services-list">
+          {#each services as service}
+            <ServiceHealthCard
+              {service}
+              history={historyByService[service.name] || []}
+              expanded={expandedService === service.name}
+              onexpand={() => toggleExpand(service.name)}
+            />
+          {/each}
         </div>
-      </a>
-    </div>
-    <p class="deprecation-note">GlitchTip and Uptime Kuma have been replaced with the built-in monitoring above.</p>
-  </section>
+      </div>
+
+    {:else if activeTab === 'database'}
+      <div class="db-view">
+        <div class="db-grid">
+          <div class="db-card">
+            <span class="db-val">{dbSummary.database_size || '—'}</span>
+            <span class="db-lbl">Size</span>
+          </div>
+          <div class="db-card">
+            <span class="db-val">{dbSummary.cache_hit_ratio || 0}%</span>
+            <span class="db-lbl">Cache Hit</span>
+            <span class="db-tag" class:ok={dbSummary.cache_status === 'good'}>{dbSummary.cache_status || 'unknown'}</span>
+          </div>
+          <div class="db-card">
+            <span class="db-val">{dbSummary.connections?.current || 0}/{dbSummary.connections?.max || 100}</span>
+            <span class="db-lbl">Connections</span>
+            <div class="db-bar">
+              <div class="db-bar-fill" style="width: {dbSummary.connections?.usage_percent || 0}%"></div>
+            </div>
+          </div>
+          <div class="db-card">
+            <span class="db-val">{dbLockStats.waiting || 0}</span>
+            <span class="db-lbl">Waiting Locks</span>
+            <span class="db-tag" class:ok={dbLockStats.waiting === 0} class:warn={dbLockStats.waiting > 0}>
+              {dbLockStats.waiting > 0 ? 'contention' : 'clear'}
+            </span>
+          </div>
+        </div>
+
+        <a href="/database" class="db-link">
+          <span>Full Database Dashboard</span>
+          <span>→</span>
+        </a>
+      </div>
+
+    {:else if activeTab === 'external'}
+      <div class="ext-view">
+        <p class="ext-intro">External monitoring for deep analysis.</p>
+
+        <div class="ext-grid">
+          <a href="https://metrics.selify.ai" target="_blank" rel="noopener" class="ext-card">
+            <div class="ext-icon">S</div>
+            <div class="ext-info">
+              <span class="ext-name">SigNoz</span>
+              <span class="ext-desc">APM, traces, logs</span>
+            </div>
+          </a>
+          <a href="https://temporal.selify.ai" target="_blank" rel="noopener" class="ext-card">
+            <div class="ext-icon">T</div>
+            <div class="ext-info">
+              <span class="ext-name">Temporal</span>
+              <span class="ext-desc">Workflows</span>
+            </div>
+          </a>
+          <a href="https://modal.com/apps" target="_blank" rel="noopener" class="ext-card">
+            <div class="ext-icon">M</div>
+            <div class="ext-info">
+              <span class="ext-name">Modal</span>
+              <span class="ext-desc">GPU inference</span>
+            </div>
+          </a>
+          <a href="https://dash.cloudflare.com" target="_blank" rel="noopener" class="ext-card">
+            <div class="ext-icon">C</div>
+            <div class="ext-info">
+              <span class="ext-name">Cloudflare</span>
+              <span class="ext-desc">CDN, edge</span>
+            </div>
+          </a>
+        </div>
+
+        <section class="section">
+          <h2>Telemetry Coverage</h2>
+          <div class="telem-list">
+            <div class="telem-group">
+              <span class="telem-label">Node.js</span>
+              <span class="telem-services">api-tryon, api-billing, sync-shopify, sync-amazon</span>
+            </div>
+            <div class="telem-group">
+              <span class="telem-label">Python</span>
+              <span class="telem-services">api-workflow, worker-workflow, worker-internal, bot-commerce</span>
+            </div>
+            <div class="telem-group">
+              <span class="telem-label">Gateway</span>
+              <span class="telem-services">kong-gateway</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style lang="postcss">
   @reference '$theme';
 
-  .services-page {
-    @apply max-w-5xl;
+  .ops {
+    @apply max-w-5xl mx-auto;
   }
 
-  .page-header {
-    @apply flex justify-between items-start mb-8;
-  }
-
-  .page-title {
-    @apply text-2xl font-bold text-base07 m-0;
-  }
-
-  .page-subtitle {
-    @apply text-sm text-base05 mt-1 flex items-center gap-3;
-  }
-
-  .uptime-badge {
-    @apply text-xs bg-base0B/15 text-base0B px-2 py-0.5 rounded-full;
-  }
-
-  .btn-secondary {
-    @apply flex items-center px-4 py-2.5;
-    @apply bg-base01 border border-border rounded-lg;
-    @apply text-sm font-medium text-base06;
-    @apply cursor-pointer transition-all duration-150;
-  }
-
-  .btn-secondary:hover {
-    @apply bg-base02 text-base07 border-base03;
-  }
-
-  .mr-2 {
-    @apply mr-2;
-  }
-
-  /* Status Summary */
-  .status-summary {
-    @apply grid grid-cols-4 gap-4 mb-8;
-  }
-
-  .summary-card {
-    @apply bg-base01 border border-border rounded-xl p-5 text-center;
-    @apply transition-all duration-150;
-  }
-
-  .summary-card:hover {
-    @apply border-base03;
-  }
-
-  .summary-card.healthy {
-    @apply border-l-4 border-l-base0B;
-  }
-
-  .summary-card.degraded {
-    @apply border-l-4 border-l-base09;
-  }
-
-  .summary-card.unhealthy {
-    @apply border-l-4 border-l-base08;
-  }
-
-  .summary-card.errors {
-    @apply border-l-4 border-l-base0D;
-  }
-
-  .summary-count {
-    @apply text-3xl font-bold text-base07;
-  }
-
-  .summary-card.healthy .summary-count {
-    @apply text-base0B;
-  }
-
-  .summary-card.degraded .summary-count {
-    @apply text-base09;
-  }
-
-  .summary-card.unhealthy .summary-count {
-    @apply text-base08;
-  }
-
-  .summary-card.errors .summary-count {
-    @apply text-base0D;
-  }
-
-  .summary-label {
-    @apply text-xs text-base04 uppercase tracking-wide mt-1;
-  }
-
-  /* Section */
-  .section-title {
-    @apply text-sm font-semibold text-base05 uppercase tracking-wide mb-4;
-  }
-
-  .services-section {
+  /* Header */
+  .header {
     @apply mb-8;
   }
 
-  .services-list {
-    @apply space-y-3;
+  .header h1 {
+    @apply text-2xl font-semibold text-base06 m-0;
+    letter-spacing: -0.02em;
   }
 
-  /* Actions */
-  .actions-section {
-    @apply mb-8;
+  .status-line {
+    @apply flex items-center gap-2 mt-2;
   }
 
-  .actions-grid {
-    @apply grid grid-cols-2 gap-4;
+  .status-dot {
+    @apply w-2 h-2 rounded-full bg-base04;
   }
 
-  .action-card {
-    @apply flex items-center gap-4 p-4;
-    @apply bg-base01 border border-border rounded-xl;
-    @apply cursor-pointer transition-all duration-150;
-    @apply text-left;
+  .status-dot.ok { @apply bg-base0B; }
+  .status-dot.warn { @apply bg-base09; }
+
+  .status-text {
+    @apply text-sm text-base05;
   }
 
-  .action-card:hover:not(:disabled) {
-    @apply border-base03 bg-base02;
+  .status-sep {
+    @apply text-base03;
   }
 
-  .action-card:disabled {
-    @apply opacity-50 cursor-not-allowed;
+  .status-uptime {
+    @apply text-sm text-base04;
   }
 
-  .action-icon {
-    @apply w-10 h-10 rounded-lg bg-base02 flex items-center justify-center;
-    @apply text-base0D;
+  /* Metric Strip */
+  .metric-strip {
+    @apply flex gap-8 mb-8 pb-6 border-b border-base02;
   }
 
-  .action-icon.warning {
-    @apply text-base09;
-  }
-
-  .action-label {
-    @apply text-sm font-medium text-base06;
-  }
-
-  /* External Links */
-  .external-links {
-    @apply mt-8;
-  }
-
-  .links-grid {
-    @apply grid grid-cols-2 gap-4;
-  }
-
-  .link-card {
-    @apply flex items-center gap-4 p-4;
-    @apply bg-base01 border border-border rounded-xl;
-    @apply no-underline transition-all duration-150;
-  }
-
-  .link-card:hover {
-    @apply border-base0D bg-base02 transform -translate-y-0.5;
-  }
-
-  .link-icon {
-    @apply w-10 h-10 rounded-lg flex items-center justify-center;
-    @apply text-sm font-bold;
-  }
-
-  .link-icon.temporal {
-    @apply bg-base0E/20 text-base0E;
-  }
-
-  .link-icon.signoz {
-    @apply bg-base0C/20 text-base0C;
-  }
-
-  .link-content {
+  .metric {
     @apply flex flex-col;
   }
 
-  .link-name {
-    @apply font-semibold text-base07;
+  .metric.has-error .metric-val {
+    @apply text-base08;
   }
 
-  .link-desc {
+  .metric-val {
+    @apply text-2xl font-semibold text-base06;
+    letter-spacing: -0.02em;
+  }
+
+  .metric-dim {
+    @apply text-base04 text-lg font-normal;
+  }
+
+  .metric-lbl {
+    @apply text-xs text-base04 mt-0.5;
+  }
+
+  /* Tab Navigation */
+  .tab-nav {
+    @apply flex gap-1 mb-6;
+  }
+
+  .tab-btn {
+    @apply px-4 py-2 text-sm font-medium;
+    @apply bg-transparent border-none rounded-lg cursor-pointer;
+    @apply text-base04 transition-colors;
+  }
+
+  .tab-btn:hover {
+    @apply text-base05 bg-base01;
+  }
+
+  .tab-btn.active {
+    @apply text-base06 bg-base02;
+  }
+
+  /* Content */
+  .content {
+    @apply min-h-[400px];
+  }
+
+  /* Overview */
+  .overview {
+    @apply space-y-8;
+  }
+
+  .num-row {
+    @apply flex gap-8;
+  }
+
+  .num-item {
+    @apply flex flex-col;
+  }
+
+  .num-item.warn .num-val {
+    @apply text-base09;
+  }
+
+  .num-val {
+    @apply text-xl font-semibold text-base05;
+  }
+
+  .num-lbl {
+    @apply text-xs text-base04 mt-0.5;
+  }
+
+  .section {
+    @apply space-y-3;
+  }
+
+  .section h2 {
+    @apply text-xs font-medium text-base04 uppercase tracking-wider m-0;
+  }
+
+  /* Service table */
+  .service-table {
+    @apply space-y-1;
+  }
+
+  .service-row {
+    @apply flex items-center gap-4 py-2 px-3;
+    @apply bg-base01 rounded-lg;
+  }
+
+  .svc-status {
+    @apply w-1.5 h-1.5 rounded-full bg-base04;
+  }
+
+  .svc-status.ok { @apply bg-base0B; }
+  .svc-status.err { @apply bg-base08; }
+
+  .svc-name {
+    @apply flex-1 text-sm text-base05;
+  }
+
+  .svc-time {
+    @apply text-xs font-mono text-base04 w-16 text-right;
+  }
+
+  .svc-uptime {
+    @apply text-xs font-mono text-base04 w-12 text-right;
+  }
+
+  .more-btn {
+    @apply text-sm text-base04 hover:text-base05;
+    @apply bg-transparent border-none cursor-pointer p-0 mt-2;
+  }
+
+  /* Connection row */
+  .conn-row {
+    @apply flex gap-4;
+  }
+
+  .conn-item {
+    @apply flex items-center gap-2 py-2 px-3;
+    @apply bg-base01 rounded-lg;
+  }
+
+  .conn-state {
     @apply text-xs text-base04;
   }
 
-  .deprecation-note {
-    @apply text-xs text-base04 mt-4 text-center italic;
+  .conn-count {
+    @apply text-sm font-semibold text-base05;
+  }
+
+  /* Quick links */
+  .link-row {
+    @apply flex gap-3;
+  }
+
+  .quick-link {
+    @apply text-sm text-base04 no-underline;
+    @apply py-2 px-3 rounded-lg bg-base01;
+    @apply transition-colors;
+  }
+
+  .quick-link:hover {
+    @apply text-base05 bg-base02;
+  }
+
+  /* Services view */
+  .services-view {
+    @apply space-y-6;
+  }
+
+  .status-counts {
+    @apply flex gap-6;
+  }
+
+  .count-item {
+    @apply flex flex-col;
+  }
+
+  .count-val {
+    @apply text-2xl font-semibold text-base05;
+  }
+
+  .count-item.ok .count-val { @apply text-base0B; }
+  .count-item.warn .count-val { @apply text-base09; }
+  .count-item.err .count-val { @apply text-base08; }
+
+  .count-lbl {
+    @apply text-xs text-base04 mt-0.5;
+  }
+
+  .services-list {
+    @apply space-y-2;
+  }
+
+  /* Database view */
+  .db-view {
+    @apply space-y-6;
+  }
+
+  .db-grid {
+    @apply grid grid-cols-2 lg:grid-cols-4 gap-4;
+  }
+
+  .db-card {
+    @apply flex flex-col p-4 rounded-xl;
+    @apply bg-base01 border border-base02;
+  }
+
+  .db-val {
+    @apply text-2xl font-semibold text-base06;
+  }
+
+  .db-lbl {
+    @apply text-xs text-base04 mt-1;
+  }
+
+  .db-tag {
+    @apply text-[10px] uppercase tracking-wider mt-2;
+    @apply text-base04;
+  }
+
+  .db-tag.ok { @apply text-base0B; }
+  .db-tag.warn { @apply text-base09; }
+
+  .db-bar {
+    @apply h-1 bg-base02 rounded-full mt-3 overflow-hidden;
+  }
+
+  .db-bar-fill {
+    @apply h-full bg-base0D rounded-full;
+  }
+
+  .db-link {
+    @apply flex items-center justify-between;
+    @apply py-3 px-4 rounded-lg;
+    @apply bg-base01 border border-base02;
+    @apply text-sm text-base05 no-underline;
+    @apply transition-colors;
+  }
+
+  .db-link:hover {
+    @apply border-base03 text-base06;
+  }
+
+  /* External view */
+  .ext-view {
+    @apply space-y-6;
+  }
+
+  .ext-intro {
+    @apply text-sm text-base04 m-0;
+  }
+
+  .ext-grid {
+    @apply grid grid-cols-2 lg:grid-cols-4 gap-3;
+  }
+
+  .ext-card {
+    @apply flex items-center gap-3 p-3;
+    @apply bg-base01 border border-base02 rounded-lg;
+    @apply no-underline transition-all;
+  }
+
+  .ext-card:hover {
+    @apply border-base03;
+  }
+
+  .ext-icon {
+    @apply w-9 h-9 rounded-lg;
+    @apply flex items-center justify-center;
+    @apply bg-base02 text-base05 font-semibold text-sm;
+  }
+
+  .ext-info {
+    @apply flex flex-col;
+  }
+
+  .ext-name {
+    @apply text-sm font-medium text-base05;
+  }
+
+  .ext-desc {
+    @apply text-xs text-base04;
+  }
+
+  /* Telemetry */
+  .telem-list {
+    @apply space-y-2;
+  }
+
+  .telem-group {
+    @apply flex items-baseline gap-3 py-2 px-3;
+    @apply bg-base01 rounded-lg;
+  }
+
+  .telem-label {
+    @apply text-xs font-medium text-base04 uppercase w-16;
+  }
+
+  .telem-services {
+    @apply text-sm text-base05;
   }
 
   /* Responsive */
   @media (max-width: 768px) {
-    .status-summary {
+    .metric-strip {
+      @apply flex-wrap gap-4;
+    }
+
+    .num-row {
+      @apply flex-wrap gap-4;
+    }
+
+    .db-grid {
       @apply grid-cols-2;
     }
 
-    .links-grid,
-    .actions-grid {
-      @apply grid-cols-1;
+    .ext-grid {
+      @apply grid-cols-2;
     }
   }
 </style>

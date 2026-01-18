@@ -51,7 +51,7 @@ export const load = async ({locals, parent, fetch}) => {
       healthyServices,
       totalServices,
       avgResponseTime,
-      errorCount: dashboard?.errors?.total_errors || 0,
+      errorCount: dashboard?.errors?.unresolved_count || 0,
       openTasks: dashboard?.tasks?.error_tasks_open || 0
     }
   };

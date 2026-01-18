@@ -404,19 +404,49 @@ const {data} = await supabase.rpc('qa_get_spec_details', {p_spec_id: specId});
 | `ops.qa.run`    | Execute test runs                     |
 | `ops.qa.admin`  | Delete specs, manage settings         |
 
-### Future: Temporal Integration
+### Git Integration (Push-Triggered Tests)
 
-For scheduled/distributed test runs, integrate with Temporal:
+Tests automatically run when code is pushed to configured repos via GitPushWorkflow:
+
+```
+Push to backend-selify.ai
+    ↓
+GitPushWorkflow (Temporal)
+    ↓
+1. DeepSeek analyzes changes
+2. Evaluate trust level
+3. Run Playwright tests ← if specs configured for this repo
+4. Test failures → force human_required
+5. Create approval or auto-approve
+```
+
+**Spec Configuration:**
+
+| Column | Purpose |
+|--------|---------|
+| `run_on_push` | Enable push-triggered runs |
+| `trigger_on_repos` | Which repos trigger this spec |
+| `push_priority` | Execution order (lower = first) |
+
+**Repo → App Mapping:**
+
+| Repo | Affects |
+|------|---------|
+| `backend-selify.ai` | api.selify.ai |
+| `dash.selify.ai` | dash.selify.ai |
+| `admin.selify.ai` | admin.selify.ai |
+
+**Key Functions:**
 
 ```javascript
-// Temporal workflow for scheduled test runs
-workflow ScheduledTestRun {
-  activities:
-    - FetchActiveSpecs()
-    - ExecutePlaywrightRun()
-    - ProcessResults()
-    - NotifyOnFailure()
+// Toggle push trigger for a spec
+await qaState.togglePushTrigger(specId, true);
 
-  schedule: "0 */4 * * *"  // Every 4 hours
-}
+// Set which repos trigger this spec
+await qaState.updatePushRepos(specId, ['backend-selify.ai', 'dash.selify.ai']);
+
+// Get specs for a push
+const {data} = await supabase.rpc('qa_get_specs_for_push', {p_repo_name: 'backend-selify.ai'});
 ```
+
+**Full docs:** `backend-selify.ai/docs/QA_GIT_INTEGRATION.md`

@@ -8,6 +8,7 @@ export {default as Server} from './Server.svelte';
 export {default as AlertCircle} from './AlertCircle.svelte';
 export {default as Terminal} from './Terminal.svelte';
 export {default as BarChart} from './BarChart.svelte';
+export {default as Database} from './Database.svelte';
 export {default as ChevronLeft} from './ChevronLeft.svelte';
 export {default as ChevronRight} from './ChevronRight.svelte';
 export {default as TestTube} from './TestTube.svelte';

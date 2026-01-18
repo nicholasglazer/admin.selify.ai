@@ -1,6 +1,4 @@
 <script>
-  import {Badge, Card, ProgressBar} from '@miozu/jera';
-
   let {data} = $props();
   const {services, stats, dashboard} = data;
 
@@ -9,12 +7,12 @@
     stats.totalServices > 0 ? Math.round((stats.healthyServices / stats.totalServices) * 100) : 0
   );
 
-  // Response time categories
-  function responseTimeCategory(ms) {
-    if (ms < 100) return {label: 'Fast', variant: 'success'};
-    if (ms < 500) return {label: 'Good', variant: 'primary'};
-    if (ms < 1000) return {label: 'Slow', variant: 'warning'};
-    return {label: 'Critical', variant: 'error'};
+  // Response time status
+  function rtStatus(ms) {
+    if (ms < 100) return 'fast';
+    if (ms < 500) return 'good';
+    if (ms < 1000) return 'slow';
+    return 'critical';
   }
 </script>
 
@@ -23,218 +21,259 @@
 </svelte:head>
 
 <div class="metrics-page">
-  <header class="page-header">
-    <h1 class="page-title">System Metrics</h1>
-    <p class="page-subtitle">Platform health and performance overview</p>
+  <!-- Header -->
+  <header class="header">
+    <h1>Metrics</h1>
+    <p>System performance</p>
   </header>
 
-  <!-- Summary Stats -->
-  <div class="stats-grid">
-    <Card class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">System Uptime</div>
-        <div class="stat-value">{uptimePercent}%</div>
-        <ProgressBar value={uptimePercent} variant={uptimePercent >= 99 ? 'success' : 'warning'} size="sm" />
-        <div class="stat-detail">{stats.healthyServices}/{stats.totalServices} services healthy</div>
+  <!-- Summary Strip -->
+  <div class="summary-strip">
+    <div class="metric">
+      <span class="m-val">{uptimePercent}<span class="m-dim">%</span></span>
+      <span class="m-lbl">Uptime</span>
+      <div class="m-bar">
+        <div class="m-bar-fill" class:ok={uptimePercent >= 99} class:warn={uptimePercent < 99} style="width: {uptimePercent}%"></div>
       </div>
-    </Card>
-
-    <Card class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">Avg Response Time</div>
-        <div class="stat-value">{stats.avgResponseTime}ms</div>
-        <Badge variant={responseTimeCategory(stats.avgResponseTime).variant}>
-          {responseTimeCategory(stats.avgResponseTime).label}
-        </Badge>
-      </div>
-    </Card>
-
-    <Card class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">Active Errors</div>
-        <div class="stat-value error">{stats.errorCount}</div>
-        <a href="/errors" class="stat-link">View errors</a>
-      </div>
-    </Card>
-
-    <Card class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">Open Tasks</div>
-        <div class="stat-value">{stats.openTasks}</div>
-        <a href="/pm" class="stat-link">View tasks</a>
-      </div>
-    </Card>
+    </div>
+    <div class="metric">
+      <span class="m-val">{stats.avgResponseTime}<span class="m-dim">ms</span></span>
+      <span class="m-lbl">Avg Response</span>
+      <span class="m-tag" class:fast={stats.avgResponseTime < 100} class:good={stats.avgResponseTime >= 100 && stats.avgResponseTime < 500} class:slow={stats.avgResponseTime >= 500}>
+        {rtStatus(stats.avgResponseTime)}
+      </span>
+    </div>
+    <div class="metric" class:alert={stats.errorCount > 0}>
+      <span class="m-val">{stats.errorCount}</span>
+      <span class="m-lbl">Active Errors</span>
+      <a href="/errors" class="m-link">View →</a>
+    </div>
+    <div class="metric">
+      <span class="m-val">{stats.openTasks}</span>
+      <span class="m-lbl">Open Tasks</span>
+      <a href="/pm" class="m-link">View →</a>
+    </div>
   </div>
 
-  <!-- Service Response Times -->
-  <section class="section">
-    <h2 class="section-title">Service Response Times</h2>
-    <Card>
-      <div class="response-times">
-        {#each services.filter((s) => s.response_time_ms !== null) as service}
-          <div class="response-row">
-            <div class="service-info">
-              <span class="service-name">{service.display_name}</span>
-              <Badge variant={service.status === 'healthy' ? 'success' : 'error'} size="sm">
-                {service.status}
-              </Badge>
-            </div>
-            <div class="response-bar">
+  <!-- Service Status -->
+  <section class="services-section">
+    <h2>Services <span class="count">({stats.healthyServices}/{stats.totalServices})</span></h2>
+
+    <div class="services-table">
+      <div class="table-header">
+        <span class="col-name">Service</span>
+        <span class="col-status">Status</span>
+        <span class="col-bar">Response Time</span>
+        <span class="col-time">Time</span>
+      </div>
+      {#each services.filter((s) => s.response_time_ms !== null) as service}
+        <div class="service-row">
+          <span class="col-name">
+            <span class="status-dot" class:healthy={service.status === 'healthy'} class:unhealthy={service.status !== 'healthy'}></span>
+            {service.display_name}
+          </span>
+          <span class="col-status">{service.status}</span>
+          <span class="col-bar">
+            <div class="rt-bar">
               <div
-                class="response-fill"
+                class="rt-fill"
                 style="width: {Math.min((service.response_time_ms / 1000) * 100, 100)}%"
                 class:fast={service.response_time_ms < 100}
                 class:good={service.response_time_ms >= 100 && service.response_time_ms < 500}
                 class:slow={service.response_time_ms >= 500}
               ></div>
             </div>
-            <span class="response-value">{service.response_time_ms}ms</span>
-          </div>
-        {/each}
-      </div>
-    </Card>
+          </span>
+          <span class="col-time">{service.response_time_ms}ms</span>
+        </div>
+      {/each}
+    </div>
   </section>
 
-  <!-- SigNoz Link -->
-  <Card class="external-link">
-    <div class="external-content">
-      <h3>Detailed Metrics in SigNoz</h3>
-      <p>For detailed traces, logs, and metrics, visit the SigNoz dashboard.</p>
-      <a href="http://localhost:3301" target="_blank" rel="noopener noreferrer" class="external-btn">
-        Open SigNoz Dashboard
-      </a>
-    </div>
-  </Card>
+  <!-- External Link -->
+  <section class="external-section">
+    <h2>Detailed Metrics</h2>
+    <p>For traces, logs, and advanced metrics</p>
+    <a href="https://metrics.selify.ai" target="_blank" rel="noopener" class="ext-link">
+      Open SigNoz →
+    </a>
+  </section>
 </div>
 
 <style lang="postcss">
   @reference '$theme';
 
   .metrics-page {
-    @apply max-w-6xl;
+    @apply max-w-5xl mx-auto;
   }
 
-  .page-header {
-    @apply mb-8;
+  /* Header */
+  .header {
+    @apply mb-10;
   }
 
-  .page-title {
-    @apply text-2xl font-bold text-base07 m-0;
+  .header h1 {
+    @apply text-2xl font-semibold text-base06 m-0;
+    letter-spacing: -0.02em;
   }
 
-  .page-subtitle {
-    @apply text-sm text-base05 mt-1;
+  .header p {
+    @apply text-sm text-base04 mt-1;
   }
 
-  .stats-grid {
-    @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8;
+  /* Summary Strip */
+  .summary-strip {
+    @apply grid grid-cols-4 gap-6 mb-12 py-5 px-6;
+    @apply bg-base01/50 rounded-lg;
   }
 
-  :global(.stat-card) {
-    @apply p-0;
+  .metric {
+    @apply flex flex-col;
   }
 
-  .stat-content {
-    @apply p-5;
-  }
-
-  .stat-label {
-    @apply text-xs font-medium text-base04 uppercase tracking-wide mb-2;
-  }
-
-  .stat-value {
-    @apply text-3xl font-bold text-base07 mb-2;
-  }
-
-  .stat-value.error {
+  .metric.alert .m-val {
     @apply text-base08;
   }
 
-  .stat-detail {
-    @apply text-xs text-base04 mt-2;
+  .m-val {
+    @apply text-2xl font-semibold text-base06;
+    letter-spacing: -0.02em;
   }
 
-  .stat-link {
-    @apply text-xs text-base0D hover:underline;
+  .m-dim {
+    @apply text-base text-base04 font-normal;
   }
 
-  .section {
-    @apply mb-8;
+  .m-lbl {
+    @apply text-xs text-base04 uppercase tracking-wider mt-0.5;
   }
 
-  .section-title {
-    @apply text-sm font-semibold text-base05 uppercase tracking-wide mb-4;
+  .m-bar {
+    @apply h-1 bg-base02 rounded-full mt-2 overflow-hidden;
   }
 
-  .response-times {
-    @apply space-y-4;
-  }
-
-  .response-row {
-    @apply flex items-center gap-4;
-  }
-
-  .service-info {
-    @apply w-48 flex items-center gap-2;
-  }
-
-  .service-name {
-    @apply text-sm text-base06 truncate;
-  }
-
-  .response-bar {
-    @apply flex-1 h-2 bg-base02 rounded-full overflow-hidden;
-  }
-
-  .response-fill {
+  .m-bar-fill {
     @apply h-full rounded-full transition-all;
   }
 
-  .response-fill.fast {
-    @apply bg-base0B;
+  .m-bar-fill.ok { @apply bg-base0B; }
+  .m-bar-fill.warn { @apply bg-base09; }
+
+  .m-tag {
+    @apply text-xs mt-2 px-2 py-0.5 rounded w-fit;
+    @apply bg-base02 text-base04;
   }
 
-  .response-fill.good {
-    @apply bg-base0D;
+  .m-tag.fast { @apply bg-base0B/15 text-base0B; }
+  .m-tag.good { @apply bg-base0D/15 text-base0D; }
+  .m-tag.slow { @apply bg-base09/15 text-base09; }
+
+  .m-link {
+    @apply text-xs text-base0D mt-2 no-underline hover:underline;
   }
 
-  .response-fill.slow {
-    @apply bg-base09;
+  /* Services Section */
+  .services-section {
+    @apply mb-12;
   }
 
-  .response-value {
-    @apply w-16 text-right text-sm font-mono text-base04;
+  .services-section h2 {
+    @apply text-xs font-medium text-base04 uppercase tracking-wider mb-4;
+    @apply flex items-center gap-2;
   }
 
-  .external-link {
-    @apply text-center;
+  .count {
+    @apply text-base04 font-normal;
   }
 
-  .external-content {
-    @apply py-8;
+  .services-table {
+    @apply bg-base01 border border-base02 rounded-lg overflow-hidden;
   }
 
-  .external-content h3 {
-    @apply text-lg font-semibold text-base06 mb-2;
+  .table-header {
+    @apply flex items-center px-4 py-3 border-b border-base02;
+    @apply text-xs text-base04 uppercase tracking-wide;
   }
 
-  .external-content p {
-    @apply text-sm text-base04 mb-4;
+  .service-row {
+    @apply flex items-center px-4 py-3 border-b border-base02;
+    @apply text-sm transition-colors;
   }
 
-  .external-btn {
-    @apply inline-flex items-center gap-2 px-4 py-2;
-    @apply bg-base0D text-white rounded-lg;
-    @apply hover:bg-base0D/80 transition-colors;
+  .service-row:last-child {
+    @apply border-b-0;
   }
 
+  .service-row:hover {
+    @apply bg-base02/50;
+  }
+
+  .col-name {
+    @apply flex items-center gap-2 flex-1;
+    @apply text-base05;
+  }
+
+  .col-status {
+    @apply w-24 text-xs text-base04;
+  }
+
+  .col-bar {
+    @apply flex-1;
+  }
+
+  .col-time {
+    @apply w-20 text-right font-mono text-xs text-base04;
+  }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot.healthy { @apply bg-base0B; }
+  .status-dot.unhealthy { @apply bg-base08; }
+
+  .rt-bar {
+    @apply h-1.5 bg-base02 rounded-full overflow-hidden;
+  }
+
+  .rt-fill {
+    @apply h-full rounded-full transition-all;
+  }
+
+  .rt-fill.fast { @apply bg-base0B; }
+  .rt-fill.good { @apply bg-base0D; }
+  .rt-fill.slow { @apply bg-base09; }
+
+  /* External Section */
+  .external-section {
+    @apply py-8 px-6 bg-base01 border border-base02 rounded-lg text-center;
+  }
+
+  .external-section h2 {
+    @apply text-sm font-medium text-base05 m-0;
+  }
+
+  .external-section p {
+    @apply text-xs text-base04 mt-1 mb-4;
+  }
+
+  .ext-link {
+    @apply inline-flex text-sm text-base0D no-underline;
+    @apply hover:underline;
+  }
+
+  /* Responsive */
   @media (max-width: 768px) {
-    .stats-grid {
-      @apply grid-cols-2;
+    .summary-strip {
+      @apply grid-cols-2 gap-4;
     }
 
-    .service-info {
-      @apply w-32;
+    .col-bar {
+      @apply hidden;
+    }
+
+    .col-status {
+      @apply hidden;
     }
   }
 </style>

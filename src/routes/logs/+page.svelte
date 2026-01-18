@@ -36,8 +36,8 @@
         <li>Log level filtering (error, warn, info, debug)</li>
         <li>Correlation with traces and errors</li>
       </ul>
-      <a href="http://localhost:3301" target="_blank" rel="noopener noreferrer" class="external-btn">
-        Open SigNoz Dashboard (Local)
+      <a href="https://metrics.selify.ai" target="_blank" rel="noopener noreferrer" class="external-btn">
+        Open SigNoz Dashboard
       </a>
     </div>
   </Card>

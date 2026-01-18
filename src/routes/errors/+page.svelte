@@ -1,19 +1,17 @@
 <script>
   import {goto} from '$app/navigation';
   import {page} from '$app/stores';
-  import {Badge} from '$components';
 
   let {data} = $props();
   const {errors, stats, dashboard, services, filters} = data;
 
-  // Track expanded error cards
+  // Track expanded error
   let expandedError = $state(null);
 
   function toggleExpand(errorId) {
     expandedError = expandedError === errorId ? null : errorId;
   }
 
-  // Filter change handlers
   function updateFilter(key, value) {
     const params = new URLSearchParams($page.url.searchParams);
     if (value) {
@@ -24,123 +22,95 @@
     goto(`?${params.toString()}`);
   }
 
-  // Time ago formatter
   function timeAgo(date) {
-    if (!date) return 'never';
+    if (!date) return '—';
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  }
-
-  // Status colors
-  function statusColor(status) {
-    switch (status) {
-      case 'new':
-        return 'error';
-      case 'unresolved':
-        return 'warning';
-      case 'resolved':
-        return 'success';
-      case 'ignored':
-        return 'muted';
-      default:
-        return 'default';
-    }
+    if (seconds < 60) return 'now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    return `${Math.floor(seconds / 86400)}d`;
   }
 </script>
 
 <svelte:head>
-  <title>Error Tracking | Selify Admin</title>
+  <title>Errors | Selify Admin</title>
 </svelte:head>
 
-<div class="errors-page">
-  <header class="page-header">
-    <div>
-      <h1 class="page-title">Error Tracking</h1>
-      <p class="page-subtitle">
-        {stats.total_errors} errors tracked
-        {#if stats.unresolved > 0}
-          <span class="unresolved-badge">
-            {stats.unresolved} unresolved
-          </span>
-        {/if}
-      </p>
+<div class="err-page">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <h1>Errors</h1>
+      <p>{stats.total_errors || 0} tracked</p>
     </div>
-
-    <!-- Filters -->
     <div class="filters">
       <select
-        class="filter-select"
+        class="filter"
         value={filters.service || ''}
         onchange={(e) => updateFilter('service', e.target.value)}
       >
-        <option value="">All Services</option>
+        <option value="">All services</option>
         {#each services as service}
           <option value={service}>{service}</option>
         {/each}
       </select>
-
       <select
-        class="filter-select"
+        class="filter"
         value={filters.status || ''}
         onchange={(e) => updateFilter('status', e.target.value)}
       >
-        <option value="">All Statuses</option>
+        <option value="">All statuses</option>
         <option value="new">New</option>
         <option value="unresolved">Unresolved</option>
         <option value="resolved">Resolved</option>
         <option value="ignored">Ignored</option>
       </select>
-
       <select
-        class="filter-select"
+        class="filter"
         value={filters.hours}
         onchange={(e) => updateFilter('hours', e.target.value)}
       >
-        <option value="1">Last hour</option>
-        <option value="24">Last 24 hours</option>
-        <option value="168">Last 7 days</option>
-        <option value="720">Last 30 days</option>
+        <option value="1">1h</option>
+        <option value="24">24h</option>
+        <option value="168">7d</option>
+        <option value="720">30d</option>
       </select>
     </div>
   </header>
 
-  <!-- Stats Summary -->
-  <div class="stats-summary">
-    <div class="stat-card new">
-      <div class="stat-count">{stats.unresolved || 0}</div>
-      <div class="stat-label">Unresolved</div>
+  <!-- Metric Strip -->
+  <div class="metric-strip">
+    <div class="metric" class:alert={stats.unresolved > 0}>
+      <span class="m-val">{stats.unresolved || 0}</span>
+      <span class="m-lbl">Unresolved</span>
     </div>
-    <div class="stat-card occurrences">
-      <div class="stat-count">{stats.total_occurrences || 0}</div>
-      <div class="stat-label">Occurrences</div>
+    <div class="metric">
+      <span class="m-val">{stats.total_occurrences || 0}</span>
+      <span class="m-lbl">Occurrences</span>
     </div>
-    <div class="stat-card resolved">
-      <div class="stat-count">{stats.resolved || 0}</div>
-      <div class="stat-label">Resolved</div>
+    <div class="metric">
+      <span class="m-val">{stats.resolved || 0}</span>
+      <span class="m-lbl">Resolved</span>
     </div>
-    <div class="stat-card tasks">
-      <div class="stat-count">{dashboard?.tasks?.error_tasks_open || 0}</div>
-      <div class="stat-label">Open Tasks</div>
+    <div class="metric">
+      <span class="m-val">{dashboard?.tasks?.error_tasks_open || 0}</span>
+      <span class="m-lbl">Open Tasks</span>
     </div>
   </div>
 
-  <!-- By Service Breakdown -->
+  <!-- Service Breakdown -->
   {#if Object.keys(stats.by_service || {}).length > 0}
-    <section class="breakdown-section">
-      <h2 class="section-title">By Service</h2>
-      <div class="breakdown-grid">
+    <section class="breakdown">
+      <h2>By Service</h2>
+      <div class="service-tags">
         {#each Object.entries(stats.by_service) as [service, count]}
           <button
-            class="breakdown-item"
+            class="service-tag"
             class:active={filters.service === service}
             onclick={() => updateFilter('service', filters.service === service ? null : service)}
           >
-            <span class="breakdown-name">{service}</span>
-            <span class="breakdown-count">{count}</span>
+            <span class="svc-name">{service}</span>
+            <span class="svc-count">{count}</span>
           </button>
         {/each}
       </div>
@@ -149,95 +119,67 @@
 
   <!-- Errors List -->
   <section class="errors-section">
-    <h2 class="section-title">Errors ({errors.length})</h2>
+    <h2>Errors <span class="count">({errors.length})</span></h2>
 
     {#if errors.length === 0}
-      <div class="empty-state">
-        <div class="empty-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </div>
-        <p>No errors found in this time period</p>
+      <div class="empty">
+        <span class="empty-dot"></span>
+        <p>No errors in this period</p>
       </div>
     {:else}
       <div class="errors-list">
         {#each errors as error}
-          <div class="error-card" class:expanded={expandedError === error.id}>
-            <button class="error-header" onclick={() => toggleExpand(error.id)}>
-              <div class="error-main">
-                <Badge variant={statusColor(error.status)}>{error.status}</Badge>
+          <div class="error-row" class:expanded={expandedError === error.id}>
+            <button class="error-main" onclick={() => toggleExpand(error.id)}>
+              <div class="error-left">
+                <span class="status-dot" class:new={error.status === 'new'} class:unresolved={error.status === 'unresolved'} class:resolved={error.status === 'resolved'} class:ignored={error.status === 'ignored'}></span>
                 <span class="error-type">{error.error_type}</span>
                 <span class="error-title">{error.title}</span>
               </div>
-              <div class="error-meta">
-                <span class="error-service">{error.service}</span>
-                <span class="error-count">{error.occurrence_count}x</span>
+              <div class="error-right">
+                <span class="error-svc">{error.service}</span>
+                <span class="error-occ">{error.occurrence_count}×</span>
                 <span class="error-users">{error.user_count} users</span>
                 <span class="error-time">{timeAgo(error.last_seen)}</span>
-                <svg class="expand-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M4 6l4 4 4-4"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <span class="chevron">›</span>
               </div>
             </button>
 
             {#if expandedError === error.id}
               <div class="error-details">
-                <div class="detail-row">
-                  <span class="detail-label">Fingerprint</span>
-                  <code class="detail-value">{error.fingerprint}</code>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Environment</span>
-                  <span class="detail-value">{error.environment}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">First seen</span>
-                  <span class="detail-value">{new Date(error.first_seen).toLocaleString()}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Last seen</span>
-                  <span class="detail-value">{new Date(error.last_seen).toLocaleString()}</span>
+                <div class="detail-grid">
+                  <div class="detail">
+                    <span class="d-label">Fingerprint</span>
+                    <code class="d-value">{error.fingerprint}</code>
+                  </div>
+                  <div class="detail">
+                    <span class="d-label">Environment</span>
+                    <span class="d-value">{error.environment}</span>
+                  </div>
+                  <div class="detail">
+                    <span class="d-label">First seen</span>
+                    <span class="d-value">{new Date(error.first_seen).toLocaleString()}</span>
+                  </div>
+                  <div class="detail">
+                    <span class="d-label">Last seen</span>
+                    <span class="d-value">{new Date(error.last_seen).toLocaleString()}</span>
+                  </div>
                 </div>
 
                 {#if error.task_id}
-                  <div class="detail-row">
-                    <span class="detail-label">Linked Task</span>
-                    <a href="/pm?task={error.task_id}" class="task-link">
-                      View in PM Board
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path
-                          d="M3.5 8.5l5-5m0 0H4m4.5 0v4.5"
-                          stroke="currentColor"
-                          stroke-width="1.5"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </a>
-                  </div>
+                  <a href="/pm?task={error.task_id}" class="task-link">
+                    View in PM Board →
+                  </a>
                 {/if}
 
-                <div class="error-actions">
+                <div class="actions">
                   {#if error.status !== 'resolved'}
-                    <button class="btn-resolve" disabled>Mark Resolved</button>
+                    <button class="action-btn resolve" disabled>Resolve</button>
                   {/if}
                   {#if !error.task_id}
-                    <button class="btn-create-task" disabled>Create Task</button>
+                    <button class="action-btn create" disabled>Create Task</button>
                   {/if}
-                  <button class="btn-view-details" disabled>View Full Details</button>
+                  <button class="action-btn" disabled>Details</button>
                 </div>
               </div>
             {/if}
@@ -251,280 +193,255 @@
 <style lang="postcss">
   @reference '$theme';
 
-  .errors-page {
-    @apply max-w-5xl;
+  .err-page {
+    @apply max-w-5xl mx-auto;
   }
 
-  .page-header {
-    @apply flex justify-between items-start mb-8 flex-wrap gap-4;
+  /* Header */
+  .header {
+    @apply flex justify-between items-start mb-10 flex-wrap gap-4;
   }
 
-  .page-title {
-    @apply text-2xl font-bold text-base07 m-0;
+  .header h1 {
+    @apply text-2xl font-semibold text-base06 m-0;
+    letter-spacing: -0.02em;
   }
 
-  .page-subtitle {
-    @apply text-sm text-base05 mt-1 flex items-center gap-3;
+  .header p {
+    @apply text-sm text-base04 mt-1;
   }
 
-  .unresolved-badge {
-    @apply text-xs bg-base08/15 text-base08 px-2 py-0.5 rounded-full;
-  }
-
-  /* Filters */
   .filters {
-    @apply flex gap-3;
+    @apply flex gap-2;
   }
 
-  .filter-select {
-    @apply px-3 py-2 bg-base01 border border-border rounded-lg;
-    @apply text-sm text-base06 cursor-pointer;
-    @apply focus:outline-none focus:border-base0D;
+  .filter {
+    @apply px-3 py-1.5 bg-base01 border border-base02 rounded-md;
+    @apply text-sm text-base05 cursor-pointer;
+    @apply focus:outline-none focus:border-base03;
   }
 
-  /* Stats Summary */
-  .stats-summary {
-    @apply grid grid-cols-4 gap-4 mb-8;
+  /* Metric Strip */
+  .metric-strip {
+    @apply flex gap-8 mb-10 py-4 px-5;
+    @apply bg-base01/50 rounded-lg;
   }
 
-  .stat-card {
-    @apply bg-base01 border border-border rounded-xl p-5 text-center;
+  .metric {
+    @apply flex flex-col;
   }
 
-  .stat-card.new {
-    @apply border-l-4 border-l-base08;
-  }
-
-  .stat-card.occurrences {
-    @apply border-l-4 border-l-base09;
-  }
-
-  .stat-card.resolved {
-    @apply border-l-4 border-l-base0B;
-  }
-
-  .stat-card.tasks {
-    @apply border-l-4 border-l-base0D;
-  }
-
-  .stat-count {
-    @apply text-3xl font-bold text-base07;
-  }
-
-  .stat-card.new .stat-count {
+  .metric.alert .m-val {
     @apply text-base08;
   }
 
-  .stat-card.occurrences .stat-count {
-    @apply text-base09;
+  .m-val {
+    @apply text-2xl font-semibold text-base06;
+    letter-spacing: -0.02em;
   }
 
-  .stat-card.resolved .stat-count {
-    @apply text-base0B;
+  .m-lbl {
+    @apply text-xs text-base04 uppercase tracking-wider mt-0.5;
   }
 
-  .stat-card.tasks .stat-count {
-    @apply text-base0D;
+  /* Breakdown */
+  .breakdown {
+    @apply mb-10;
   }
 
-  .stat-label {
-    @apply text-xs text-base04 uppercase tracking-wide mt-1;
+  .breakdown h2, .errors-section h2 {
+    @apply text-xs font-medium text-base04 uppercase tracking-wider mb-4;
   }
 
-  /* Breakdown Section */
-  .breakdown-section {
-    @apply mb-8;
-  }
-
-  .section-title {
-    @apply text-sm font-semibold text-base05 uppercase tracking-wide mb-4;
-  }
-
-  .breakdown-grid {
+  .service-tags {
     @apply flex flex-wrap gap-2;
   }
 
-  .breakdown-item {
+  .service-tag {
     @apply flex items-center gap-2 px-3 py-1.5;
-    @apply bg-base01 border border-border rounded-lg;
+    @apply bg-base01 border border-base02 rounded-md;
     @apply text-sm cursor-pointer transition-all;
   }
 
-  .breakdown-item:hover {
-    @apply border-base03 bg-base02;
-  }
-
-  .breakdown-item.active {
-    @apply border-base0D bg-base0D/10;
-  }
-
-  .breakdown-name {
-    @apply text-base06;
-  }
-
-  .breakdown-count {
-    @apply text-base04 text-xs bg-base02 px-1.5 py-0.5 rounded;
-  }
-
-  /* Errors Section */
-  .errors-section {
-    @apply mb-8;
-  }
-
-  .errors-list {
-    @apply space-y-3;
-  }
-
-  .error-card {
-    @apply bg-base01 border border-border rounded-xl overflow-hidden;
-    @apply transition-all duration-150;
-  }
-
-  .error-card:hover {
+  .service-tag:hover {
     @apply border-base03;
   }
 
-  .error-card.expanded {
-    @apply border-base0D;
+  .service-tag.active {
+    @apply border-base0D bg-base0D/10;
   }
 
-  .error-header {
-    @apply w-full flex justify-between items-center p-4;
-    @apply cursor-pointer text-left;
-    @apply bg-transparent border-none;
+  .svc-name {
+    @apply text-base05;
+  }
+
+  .svc-count {
+    @apply text-xs text-base04 bg-base02 px-1.5 py-0.5 rounded;
+  }
+
+  /* Errors Section */
+  .errors-section h2 {
+    @apply flex items-center gap-2;
+  }
+
+  .count {
+    @apply text-base04 font-normal;
+  }
+
+  .errors-list {
+    @apply space-y-2;
+  }
+
+  .error-row {
+    @apply bg-base01 border border-base02 rounded-lg overflow-hidden;
+    @apply transition-all duration-150;
+  }
+
+  .error-row:hover {
+    @apply border-base03;
+  }
+
+  .error-row.expanded {
+    @apply border-base03;
   }
 
   .error-main {
+    @apply w-full flex justify-between items-center px-4 py-3;
+    @apply cursor-pointer text-left bg-transparent border-none;
+  }
+
+  .error-left {
     @apply flex items-center gap-3 flex-1 min-w-0;
   }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full flex-shrink-0;
+    @apply bg-base04;
+  }
+
+  .status-dot.new { @apply bg-base08; }
+  .status-dot.unresolved { @apply bg-base09; }
+  .status-dot.resolved { @apply bg-base0B; }
+  .status-dot.ignored { @apply bg-base03; }
 
   .error-type {
     @apply text-xs font-mono text-base0E;
   }
 
   .error-title {
-    @apply text-sm text-base06 truncate;
+    @apply text-sm text-base05 truncate;
   }
 
-  .error-meta {
+  .error-right {
     @apply flex items-center gap-4 text-xs text-base04;
   }
 
-  .error-service {
-    @apply px-2 py-0.5 bg-base02 rounded;
+  .error-svc {
+    @apply px-2 py-0.5 bg-base02 rounded text-base05;
   }
 
-  .error-count {
+  .error-occ {
     @apply font-medium text-base09;
   }
 
   .error-users {
-    @apply text-base05;
+    @apply text-base04;
   }
 
   .error-time {
-    @apply text-base04;
+    @apply text-base04 w-8;
   }
 
-  .expand-icon {
-    @apply text-base04 transition-transform;
+  .chevron {
+    @apply text-base04 transition-transform text-lg leading-none;
   }
 
-  .error-card.expanded .expand-icon {
-    @apply rotate-180;
+  .error-row.expanded .chevron {
+    @apply rotate-90;
   }
 
+  /* Error Details */
   .error-details {
-    @apply px-4 pb-4 pt-0 border-t border-border;
+    @apply px-4 pb-4 pt-0 border-t border-base02;
   }
 
-  .detail-row {
-    @apply flex items-center py-2 border-b border-border/50;
+  .detail-grid {
+    @apply grid grid-cols-2 gap-x-8 gap-y-3 py-4;
   }
 
-  .detail-row:last-of-type {
-    @apply border-b-0;
+  .detail {
+    @apply flex flex-col gap-1;
   }
 
-  .detail-label {
-    @apply w-32 text-xs text-base04 uppercase tracking-wide;
+  .d-label {
+    @apply text-xs text-base04 uppercase tracking-wide;
   }
 
-  .detail-value {
-    @apply text-sm text-base06;
+  .d-value {
+    @apply text-sm text-base05;
   }
 
-  code.detail-value {
-    @apply font-mono text-xs bg-base02 px-2 py-1 rounded;
+  code.d-value {
+    @apply font-mono text-xs bg-base02 px-2 py-1 rounded w-fit;
   }
 
   .task-link {
-    @apply inline-flex items-center gap-1 text-base0D hover:underline;
+    @apply inline-flex text-sm text-base0D no-underline;
+    @apply hover:underline mb-4;
   }
 
-  .error-actions {
-    @apply flex gap-3 mt-4 pt-4 border-t border-border;
+  .actions {
+    @apply flex gap-2 pt-3 border-t border-base02;
   }
 
-  .btn-resolve,
-  .btn-create-task,
-  .btn-view-details {
-    @apply px-3 py-1.5 text-sm rounded-lg cursor-pointer;
-    @apply border transition-all;
+  .action-btn {
+    @apply px-3 py-1.5 text-xs rounded-md cursor-pointer;
+    @apply bg-base02 border border-base03 text-base05;
+    @apply transition-all;
   }
 
-  .btn-resolve {
-    @apply bg-base0B/10 border-base0B/30 text-base0B;
-  }
-
-  .btn-resolve:hover:not(:disabled) {
-    @apply bg-base0B/20;
-  }
-
-  .btn-create-task {
-    @apply bg-base0D/10 border-base0D/30 text-base0D;
-  }
-
-  .btn-create-task:hover:not(:disabled) {
-    @apply bg-base0D/20;
-  }
-
-  .btn-view-details {
-    @apply bg-base02 border-border text-base06;
-  }
-
-  .btn-view-details:hover:not(:disabled) {
+  .action-btn:hover:not(:disabled) {
     @apply bg-base03;
   }
 
-  .btn-resolve:disabled,
-  .btn-create-task:disabled,
-  .btn-view-details:disabled {
-    @apply opacity-50 cursor-not-allowed;
+  .action-btn.resolve {
+    @apply bg-base0B/10 border-base0B/30 text-base0B;
+  }
+
+  .action-btn.create {
+    @apply bg-base0D/10 border-base0D/30 text-base0D;
+  }
+
+  .action-btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
   }
 
   /* Empty State */
-  .empty-state {
-    @apply flex flex-col items-center justify-center py-16;
-    @apply text-base04;
+  .empty {
+    @apply flex items-center gap-3 py-12 px-4;
+    @apply text-base04 justify-center;
   }
 
-  .empty-icon {
-    @apply w-16 h-16 mb-4 text-base0B;
+  .empty-dot {
+    @apply w-2 h-2 rounded-full bg-base0B;
   }
 
   /* Responsive */
   @media (max-width: 768px) {
-    .stats-summary {
-      @apply grid-cols-2;
+    .metric-strip {
+      @apply grid grid-cols-2 gap-4;
     }
 
-    .error-meta {
+    .error-right {
       @apply hidden;
     }
 
     .filters {
       @apply flex-wrap;
+    }
+
+    .detail-grid {
+      @apply grid-cols-1;
     }
   }
 </style>

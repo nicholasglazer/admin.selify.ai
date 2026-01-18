@@ -16,17 +16,21 @@ export const load = async ({locals, parent, fetch}) => {
     'Content-Type': 'application/json'
   };
 
-  // Fetch services health and history in parallel
-  const [healthResponse, historyResponse, dashboardResponse] = await Promise.all([
+  const supabase = locals.supabase;
+
+  // Fetch all data in parallel
+  const [healthResponse, historyResponse, dashboardResponse, databaseHealthResult] = await Promise.all([
     fetch(`${apiBaseUrl}/api/ops/health`, {headers}).catch(() => null),
     fetch(`${apiBaseUrl}/api/ops/health/history?hours=24&bucket_minutes=5`, {headers}).catch(() => null),
-    fetch(`${apiBaseUrl}/api/ops/dashboard`, {headers}).catch(() => null)
+    fetch(`${apiBaseUrl}/api/ops/dashboard`, {headers}).catch(() => null),
+    supabase.schema('internal').rpc('get_database_health').catch(() => ({data: null, error: 'Failed to fetch'}))
   ]);
 
   // Parse responses
   let services = [];
   let history = [];
   let dashboard = null;
+  let databaseHealth = null;
 
   if (healthResponse?.ok) {
     services = await healthResponse.json();
@@ -38,6 +42,10 @@ export const load = async ({locals, parent, fetch}) => {
 
   if (dashboardResponse?.ok) {
     dashboard = await dashboardResponse.json();
+  }
+
+  if (databaseHealthResult?.data) {
+    databaseHealth = databaseHealthResult.data;
   }
 
   // Group history by service
@@ -63,6 +71,7 @@ export const load = async ({locals, parent, fetch}) => {
   return {
     services,
     historyByService,
-    dashboard
+    dashboard,
+    databaseHealth
   };
 };

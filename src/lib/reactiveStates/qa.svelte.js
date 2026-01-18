@@ -9,6 +9,17 @@
 
 const TARGET_APPS = ['dash.selify.ai', 'admin.selify.ai', 'api.selify.ai', 'vr.selify.ai'];
 
+// Git repos from custom git-api infrastructure
+const GIT_REPOS = ['backend-selify.ai', 'dash.selify.ai', 'admin.selify.ai'];
+
+// Default repo mapping (target app → likely repos that affect it)
+const DEFAULT_REPO_MAPPING = {
+  'dash.selify.ai': ['dash.selify.ai', 'backend-selify.ai'],
+  'admin.selify.ai': ['admin.selify.ai', 'backend-selify.ai'],
+  'api.selify.ai': ['backend-selify.ai'],
+  'vr.selify.ai': ['backend-selify.ai']
+};
+
 const CATEGORIES = [
   {id: 'auth', name: 'Authentication', icon: 'lock'},
   {id: 'billing', name: 'Billing', icon: 'credit-card'},
@@ -81,8 +92,16 @@ export class QAReactiveState {
     return TARGET_APPS;
   }
 
+  get gitRepos() {
+    return GIT_REPOS;
+  }
+
   get categories() {
     return CATEGORIES;
+  }
+
+  getDefaultReposForApp(targetApp) {
+    return DEFAULT_REPO_MAPPING[targetApp] || [];
   }
 
   get totalSpecs() {
@@ -107,6 +126,22 @@ export class QAReactiveState {
 
   get autoHealedToday() {
     return this.dashboardSummary?.auto_healed_today || 0;
+  }
+
+  get pushEnabledSpecs() {
+    return this.dashboardSummary?.push_enabled_specs || 0;
+  }
+
+  get specsByRepo() {
+    return this.dashboardSummary?.specs_by_repo || {};
+  }
+
+  get recentPushRuns() {
+    return this.dashboardSummary?.recent_push_runs || [];
+  }
+
+  get pushPassRate() {
+    return this.dashboardSummary?.push_pass_rate || 0;
   }
 
   // ============================================================================
@@ -157,15 +192,21 @@ export class QAReactiveState {
   // ============================================================================
 
   async createSpec(specData) {
+    const targetApp = specData.target_app || 'dash.selify.ai';
     const newSpec = {
       name: specData.name || 'New Test Spec',
       nl_spec: specData.nl_spec || '',
-      target_app: specData.target_app || 'dash.selify.ai',
+      target_app: targetApp,
       category: specData.category || 'other',
       tags: specData.tags || [],
       status: 'draft',
       generated_code: specData.generated_code || null,
-      generated_by: specData.generated_by || null
+      generated_by: specData.generated_by || null,
+      // Git push trigger settings
+      run_on_push: specData.run_on_push ?? false,
+      trigger_on_repos: specData.trigger_on_repos || this.getDefaultReposForApp(targetApp),
+      push_priority: specData.push_priority || 100,
+      push_timeout_ms: specData.push_timeout_ms || 60000
     };
 
     try {
@@ -286,6 +327,22 @@ export class QAReactiveState {
       }
       return false;
     }
+  }
+
+  // ============================================================================
+  // PUSH TRIGGER SETTINGS
+  // ============================================================================
+
+  async togglePushTrigger(specId, enabled) {
+    return this.updateSpec(specId, {run_on_push: enabled});
+  }
+
+  async updatePushRepos(specId, repos) {
+    return this.updateSpec(specId, {trigger_on_repos: repos});
+  }
+
+  async updatePushPriority(specId, priority) {
+    return this.updateSpec(specId, {push_priority: priority});
   }
 
   // ============================================================================
