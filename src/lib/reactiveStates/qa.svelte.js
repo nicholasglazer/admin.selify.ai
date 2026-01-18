@@ -327,10 +327,19 @@ export class QAReactiveState {
     this.nlCreator = {...this.nlCreator, isGenerating: true, error: null};
 
     try {
+      // Get auth token from supabase session
+      let authHeaders = {'Content-Type': 'application/json'};
+      if (this.supabase) {
+        const {data: {session}} = await this.supabase.auth.getSession();
+        if (session?.access_token) {
+          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
       // Call DeepSeek API to generate Playwright code
       const response = await fetch(`${this.apiBaseUrl}/api/qa/generate-test`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders,
         body: JSON.stringify({
           nl_spec: this.nlCreator.nlSpec,
           target_app: this.nlCreator.targetApp
@@ -346,11 +355,11 @@ export class QAReactiveState {
 
       this.nlCreator = {
         ...this.nlCreator,
-        generatedCode: data.code,
+        generatedCode: data.generated_code,
         isGenerating: false
       };
 
-      return data.code;
+      return data.generated_code;
     } catch (error) {
       console.error('NL generation failed:', error);
       this.nlCreator = {
@@ -440,9 +449,18 @@ export class QAReactiveState {
   async executeRun(runId) {
     // Call backend to actually execute Playwright tests
     try {
+      // Get auth token from supabase session
+      let authHeaders = {'Content-Type': 'application/json'};
+      if (this.supabase) {
+        const {data: {session}} = await this.supabase.auth.getSession();
+        if (session?.access_token) {
+          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
       const response = await fetch(`${this.apiBaseUrl}/api/qa/execute-run`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders,
         body: JSON.stringify({run_id: runId})
       });
 

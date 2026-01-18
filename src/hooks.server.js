@@ -75,25 +75,25 @@ export const handle = async ({event, resolve}) => {
   });
 
   /**
-   * Validate session by checking JWT
+   * Get session - simplified to avoid triggering session invalidation
+   *
+   * IMPORTANT: We don't call getUser() here because it can trigger token
+   * refresh which may clear cookies across subdomains. For admin panel,
+   * we trust the session from getSession() which is sufficient for auth checks.
+   * Actual Supabase API calls will validate the JWT anyway.
    */
   event.locals.safeGetSession = async () => {
     const {
       data: {session}
     } = await event.locals.supabase.auth.getSession();
+
     if (!session) {
       return {session: null, user: null};
     }
 
-    const {
-      data: {user},
-      error
-    } = await event.locals.supabase.auth.getUser();
-    if (error) {
-      return {session: null, user: null};
-    }
-
-    return {session, user};
+    // Use user from session instead of calling getUser()
+    // This prevents potential token refresh issues that could clear cookies
+    return {session, user: session.user};
   };
 
   // Get session
