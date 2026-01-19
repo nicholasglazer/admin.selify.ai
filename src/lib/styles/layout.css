@@ -1,0 +1,321 @@
+/**
+ * Layout Utilities - admin.selify.ai
+ *
+ * Reusable layout patterns extracted from page components.
+ * Uses CSS @layer for proper specificity with Tailwind.
+ *
+ * 2026 Best Practices Applied:
+ * - CSS Layers for specificity control
+ * - Design tokens via CSS variables
+ * - Minimal @apply usage (only for truly reusable patterns)
+ * - Semantic class names
+ */
+
+@layer components {
+  /* ============================================================================
+     Page Layout Patterns
+     ============================================================================ */
+
+  /**
+   * Standard page container - all pages should use this.
+   * Applied via `.page` class on outermost div.
+   */
+  .page {
+    @apply w-full h-full;
+  }
+
+  .page-flex {
+    @apply flex flex-col w-full h-full;
+  }
+
+  /* ============================================================================
+     Page Headers
+     ============================================================================ */
+
+  /**
+   * Standard page header with title and optional subtitle.
+   * Usage: <header class="page-header">
+   */
+  .page-header {
+    @apply mb-8;
+  }
+
+  .page-header-row {
+    @apply flex justify-between items-start mb-8 flex-wrap gap-4;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold text-base06 m-0;
+    letter-spacing: -0.02em;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-base04 mt-1;
+  }
+
+  /* ============================================================================
+     Section Headers
+     ============================================================================ */
+
+  /**
+   * Consistent section headers across all pages.
+   * Usage: <h2 class="section-header">Title</h2>
+   */
+  .section-header {
+    @apply text-xs font-medium text-base04 uppercase tracking-wider mb-4 m-0;
+    @apply flex items-center gap-2;
+  }
+
+  .section-header-count {
+    @apply text-base04 font-normal;
+  }
+
+  /* ============================================================================
+     Metric Strips - Stats Row Pattern
+     ============================================================================ */
+
+  /**
+   * Horizontal strip of metric cards.
+   * Usage: <div class="metric-strip"><div class="metric">...</div></div>
+   */
+  .metric-strip {
+    @apply flex gap-8 mb-10 py-4 px-5;
+    @apply bg-base01/50 rounded-lg;
+  }
+
+  .metric-strip-bordered {
+    @apply flex gap-8 mb-8 pb-6 border-b border-base02;
+  }
+
+  .metric {
+    @apply flex flex-col;
+  }
+
+  .metric-value {
+    @apply text-2xl font-semibold text-base06;
+    letter-spacing: -0.02em;
+  }
+
+  .metric-label {
+    @apply text-xs text-base04 uppercase tracking-wider mt-0.5;
+  }
+
+  .metric-dim {
+    @apply text-lg text-base04 font-normal;
+  }
+
+  .metric-bar {
+    @apply h-1 bg-base02 rounded-full mt-3 overflow-hidden;
+  }
+
+  .metric-bar-fill {
+    @apply h-full rounded-full transition-all;
+  }
+
+  /* Alert states for metrics */
+  .metric.alert .metric-value {
+    @apply text-base08;
+  }
+
+  /* ============================================================================
+     Status Indicators
+     ============================================================================ */
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full flex-shrink-0;
+  }
+
+  .status-dot-ok {
+    @apply bg-base0B;
+  }
+
+  .status-dot-warn {
+    @apply bg-base09;
+  }
+
+  .status-dot-err {
+    @apply bg-base08;
+  }
+
+  .status-dot-muted {
+    @apply bg-base04;
+  }
+
+  /* ============================================================================
+     Cards & Surfaces
+     ============================================================================ */
+
+  .card {
+    @apply bg-base01 border border-base02 rounded-xl p-4;
+    @apply transition-all duration-150;
+  }
+
+  .card-hover:hover {
+    @apply border-base03;
+  }
+
+  .card-interactive {
+    @apply cursor-pointer;
+  }
+
+  .card-interactive:hover {
+    @apply border-base03 shadow-lg;
+  }
+
+  /* ============================================================================
+     Tables
+     ============================================================================ */
+
+  .data-table {
+    @apply w-full border-collapse;
+  }
+
+  .data-table th {
+    @apply text-left text-xs font-medium text-base04 uppercase tracking-wider;
+    @apply px-3 py-2.5 border-b border-base02;
+  }
+
+  .data-table td {
+    @apply px-3 py-2.5 border-b border-base02 text-base05;
+  }
+
+  .data-table tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .data-table tbody tr:hover td {
+    @apply bg-base02/30;
+  }
+
+  .table-wrap {
+    @apply overflow-x-auto bg-base01 rounded-lg;
+  }
+
+  /* ============================================================================
+     Tags & Badges
+     ============================================================================ */
+
+  .tag {
+    @apply inline-block text-[10px] uppercase tracking-wider py-0.5 px-1.5 rounded;
+    @apply bg-base02 text-base04;
+  }
+
+  .tag-ok {
+    @apply bg-base0B/15 text-base0B;
+  }
+
+  .tag-warn {
+    @apply bg-base09/15 text-base09;
+  }
+
+  .tag-err {
+    @apply bg-base08/15 text-base08;
+  }
+
+  .tag-info {
+    @apply bg-base0D/15 text-base0D;
+  }
+
+  /* ============================================================================
+     Navigation Tabs
+     ============================================================================ */
+
+  .tab-nav {
+    @apply flex gap-1 mb-6;
+  }
+
+  .tab-btn {
+    @apply px-4 py-2 text-sm font-medium;
+    @apply bg-transparent border-none rounded-lg cursor-pointer;
+    @apply text-base04 transition-colors;
+  }
+
+  .tab-btn:hover {
+    @apply text-base05 bg-base01;
+  }
+
+  .tab-btn.active {
+    @apply text-base06 bg-base02;
+  }
+
+  /* ============================================================================
+     Buttons
+     ============================================================================ */
+
+  .btn-primary {
+    @apply flex items-center gap-2 px-4 py-2;
+    @apply bg-base0D text-white rounded-lg;
+    @apply text-sm font-medium;
+    @apply transition-all duration-150;
+    @apply hover:bg-base0D/90;
+  }
+
+  .btn-secondary {
+    @apply flex items-center gap-2 px-4 py-2;
+    @apply bg-base02 text-base06 rounded-lg;
+    @apply text-sm font-medium;
+    @apply transition-all duration-150;
+    @apply hover:bg-base03;
+  }
+
+  .btn-ghost {
+    @apply flex items-center gap-2 px-4 py-2;
+    @apply bg-transparent text-base05 rounded-lg;
+    @apply text-sm font-medium;
+    @apply transition-all duration-150;
+    @apply hover:text-base06 hover:bg-base01;
+  }
+
+  /* ============================================================================
+     Empty States
+     ============================================================================ */
+
+  .empty-state {
+    @apply text-sm text-base04 py-6 text-center bg-base01 rounded-lg;
+  }
+
+  .empty-state-large {
+    @apply flex flex-col items-center justify-center py-12 text-base04;
+  }
+
+  /* ============================================================================
+     Links
+     ============================================================================ */
+
+  .link {
+    @apply text-base0D no-underline hover:underline;
+  }
+
+  .link-arrow {
+    @apply text-sm text-base04 hover:text-base05;
+    @apply no-underline transition-colors;
+  }
+
+  /* ============================================================================
+     Filters & Controls
+     ============================================================================ */
+
+  .filter-select {
+    @apply px-3 py-1.5 bg-base01 border border-base02 rounded-md;
+    @apply text-sm text-base05 cursor-pointer;
+    @apply focus:outline-none focus:border-base03;
+  }
+
+  /* ============================================================================
+     Responsive Utilities
+     ============================================================================ */
+
+  @media (max-width: 768px) {
+    .metric-strip {
+      @apply flex-wrap gap-4;
+    }
+
+    .metric-strip-bordered {
+      @apply flex-wrap gap-4;
+    }
+
+    .tab-nav {
+      @apply flex-wrap;
+    }
+  }
+}
