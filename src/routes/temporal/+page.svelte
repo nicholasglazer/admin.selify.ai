@@ -39,9 +39,20 @@
   });
 
   onDestroy(() => {
+    // Clear any pending search debounce timeout
+    if (searchDebounce) {
+      clearTimeout(searchDebounce);
+      searchDebounce = null;
+    }
+
     // Show tracker again when leaving the page (if there are active processes)
+    // The tracker will reconnect to SSE if needed
     if (temporalState?.hasActive) {
       temporalState.trackerVisible = true;
+    } else {
+      // No active processes, so disconnect the SSE stream to prevent memory leaks
+      // The tracker won't be shown, so no one needs the stream
+      temporalState?.disconnectStream();
     }
   });
 
@@ -65,6 +76,11 @@
   }
 
   function clearSearch() {
+    // Clear any pending debounce when clearing search
+    if (searchDebounce) {
+      clearTimeout(searchDebounce);
+      searchDebounce = null;
+    }
     searchInput = '';
     temporalState.searchResults = [];
     temporalState.searchQuery = '';

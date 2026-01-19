@@ -9,6 +9,9 @@ export class ToastReactiveState {
   // All active toasts
   toasts = $state([]);
 
+  // Track timers for cleanup
+  _timers = new Map(); // id -> {interval, timeout}
+
   // Default configuration
   defaultConfig = {
     duration: 4000,
@@ -87,6 +90,8 @@ export class ToastReactiveState {
    * Dismiss a specific toast
    */
   dismiss(id) {
+    // Clear any pending timers for this toast
+    this._clearTimers(id);
     this.toasts = this.toasts.filter((t) => t.id !== id);
   }
 
@@ -94,7 +99,23 @@ export class ToastReactiveState {
    * Dismiss all toasts
    */
   dismissAll() {
+    // Clear all pending timers
+    for (const id of this._timers.keys()) {
+      this._clearTimers(id);
+    }
     this.toasts = [];
+  }
+
+  /**
+   * Clear timers for a specific toast
+   */
+  _clearTimers(id) {
+    const timers = this._timers.get(id);
+    if (timers) {
+      if (timers.interval) clearInterval(timers.interval);
+      if (timers.timeout) clearTimeout(timers.timeout);
+      this._timers.delete(id);
+    }
   }
 
   /**
@@ -115,18 +136,27 @@ export class ToastReactiveState {
     const startTime = Date.now();
     const interval = 50; // Update every 50ms for smooth animation
 
-    const timer = setInterval(() => {
+    const intervalId = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / duration) * 100, 100);
 
       this._updateProgress(id, progress);
 
       if (progress >= 100) {
-        clearInterval(timer);
+        clearInterval(intervalId);
         // Small delay before dismissing for visual feedback
-        setTimeout(() => this.dismiss(id), 100);
+        const timeoutId = setTimeout(() => this.dismiss(id), 100);
+        // Track the timeout (interval already cleared, update entry)
+        const existing = this._timers.get(id);
+        if (existing) {
+          existing.interval = null;
+          existing.timeout = timeoutId;
+        }
       }
     }, interval);
+
+    // Track the interval timer
+    this._timers.set(id, {interval: intervalId, timeout: null});
   }
 
   /**
@@ -156,5 +186,8 @@ export function getToastState(config = {}) {
  * Reset the singleton (useful for testing)
  */
 export function resetToastState() {
+  if (toastState) {
+    toastState.dismissAll();
+  }
   toastState = null;
 }

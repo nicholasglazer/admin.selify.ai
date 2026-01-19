@@ -24,7 +24,7 @@
       imapHost: 'shadow.mxrouting.net',
       imapPort: 993,
       smtpHost: 'shadow.mxrouting.net',
-      smtpPort: 465
+      smtpPort: 2525
     },
     {
       id: 'gmail',

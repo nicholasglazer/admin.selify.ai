@@ -64,6 +64,7 @@ export class PMBoardReactiveState {
   customDragOffset = $state({x: 0, y: 0});
   dragAnimationFrame = null;
   hoverCheckThrottle = null;
+  justFinishedDrag = false; // Prevents click after drag
 
   // Filters
   filters = $state({
@@ -95,6 +96,11 @@ export class PMBoardReactiveState {
     nlDescription: '',
     generatedTask: null,
     error: null
+  });
+
+  // Manual Task Creator State
+  manualCreator = $state({
+    isOpen: false
   });
 
   // API base URL for AI endpoints
@@ -281,12 +287,22 @@ export class PMBoardReactiveState {
     };
   }
 
+  // Open manual task creator
+  openManualCreator() {
+    this.manualCreator = {isOpen: true};
+  }
+
+  // Close manual task creator
+  closeManualCreator() {
+    this.manualCreator = {isOpen: false};
+  }
+
   // Set NL description
   setNLDescription(description) {
     this.nlCreator = {...this.nlCreator, nlDescription: description, error: null};
   }
 
-  // Generate task from NL description using DeepSeek
+  // Generate task from NL description using DeepSeek via backend API
   async generateTaskFromNL() {
     if (!this.nlCreator.nlDescription.trim()) {
       this.nlCreator = {...this.nlCreator, error: 'Please enter a task description'};
@@ -296,17 +312,27 @@ export class PMBoardReactiveState {
     this.nlCreator = {...this.nlCreator, isGenerating: true, error: null};
 
     try {
-      const response = await fetch('/api/pm/generate-task', {
+      // Get auth token from supabase session (same pattern as QA)
+      let authHeaders = {'Content-Type': 'application/json'};
+      if (this.supabase) {
+        const {
+          data: {session}
+        } = await this.supabase.auth.getSession();
+        if (session?.access_token) {
+          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
+      // Call backend API (not local SvelteKit endpoint)
+      const response = await fetch(`${this.apiBaseUrl}/api/pm/generate-task`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           description: this.nlCreator.nlDescription,
           team_members: this.teamMembers.map((m) => ({
             id: m.id,
-            name: m.display_name || m.full_name,
-            email: m.email
+            display_name: m.display_name || null,
+            full_name: m.full_name || null
           })),
           existing_labels: this.getExistingLabels()
         })
@@ -314,15 +340,16 @@ export class PMBoardReactiveState {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `API error: ${response.status}`);
+        throw new Error(errorData.detail || errorData.error || `API error: ${response.status}`);
       }
 
-      const result = await response.json();
+      // Backend returns the task directly (not wrapped in {task: ...})
+      const generatedTask = await response.json();
 
       this.nlCreator = {
         ...this.nlCreator,
         isGenerating: false,
-        generatedTask: result.task
+        generatedTask
       };
     } catch (error) {
       console.error('Failed to generate task from NL:', error);
@@ -694,8 +721,12 @@ export class PMBoardReactiveState {
         this.hoverCheckThrottle = setTimeout(() => {
           this.hoverCheckThrottle = null;
 
-          if (typeof document !== 'undefined') {
+          if (typeof document !== 'undefined' && this.customDragGhost) {
+            // Temporarily hide ghost so elementFromPoint finds the column underneath
+            this.customDragGhost.style.display = 'none';
             const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+            this.customDragGhost.style.display = '';
+
             if (elementBelow) {
               const columnEl = elementBelow.closest('.pm-column');
               if (columnEl) {
@@ -717,9 +748,7 @@ export class PMBoardReactiveState {
   handleDragEnd = async (event) => {
     if (!this.isDragging || this.dragType !== 'issue') return;
 
-    const targetColumn = this.hoveredColumn;
-
-    // Cancel animations
+    // Cancel animations first
     if (this.dragAnimationFrame) {
       cancelAnimationFrame(this.dragAnimationFrame);
       this.dragAnimationFrame = null;
@@ -727,6 +756,26 @@ export class PMBoardReactiveState {
     if (this.hoverCheckThrottle) {
       clearTimeout(this.hoverCheckThrottle);
       this.hoverCheckThrottle = null;
+    }
+
+    // Do a final synchronous hover check to get accurate drop target
+    // (the throttled check might not have run yet)
+    let targetColumn = this.hoveredColumn;
+    if (typeof document !== 'undefined') {
+      // Temporarily hide ghost so elementFromPoint finds the column underneath
+      if (this.customDragGhost) {
+        this.customDragGhost.style.display = 'none';
+      }
+      const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+      if (this.customDragGhost) {
+        this.customDragGhost.style.display = '';
+      }
+      if (elementBelow) {
+        const columnEl = elementBelow.closest('.pm-column');
+        if (columnEl) {
+          targetColumn = columnEl.dataset.columnId;
+        }
+      }
     }
 
     // Fade out ghost
@@ -742,6 +791,12 @@ export class PMBoardReactiveState {
         draggedEl.classList.remove('dragging');
       }
     }
+
+    // Set flag to prevent click from opening modal after drag
+    this.justFinishedDrag = true;
+    setTimeout(() => {
+      this.justFinishedDrag = false;
+    }, 100);
 
     // Handle the drop
     if (targetColumn && this.draggedIssue) {

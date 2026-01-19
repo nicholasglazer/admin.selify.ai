@@ -41,8 +41,8 @@
 
   // Handle click for detail view
   function handleClick(e) {
-    // Don't open detail if we were dragging
-    if (pmState?.isDragging) return;
+    // Don't open detail if we were dragging or just finished dragging
+    if (pmState?.isDragging || pmState?.justFinishedDrag) return;
     pmState?.selectIssue?.(issue);
   }
 

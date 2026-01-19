@@ -1,5 +1,5 @@
 <script>
-  import {getContext, onMount} from 'svelte';
+  import {getContext, onMount, onDestroy} from 'svelte';
   import {goto} from '$app/navigation';
   import {PageHeader} from '$components';
   import {
@@ -20,6 +20,9 @@
   // Track supabase client
   let supabase = $state(null);
 
+  // Track if component is mounted (for cleanup)
+  let isMounted = true;
+
   onMount(() => {
     const checkSupabase = setInterval(() => {
       if (supabaseHolder?.client) {
@@ -28,6 +31,10 @@
       }
     }, 50);
     return () => clearInterval(checkSupabase);
+  });
+
+  onDestroy(() => {
+    isMounted = false;
   });
 
   let approvals = $state(data.approvals || []);
@@ -40,6 +47,8 @@
   let selectedIds = $state(new Set());
 
   async function fetchApprovals() {
+    if (!isMounted || !supabase) return;
+
     loading = true;
     try {
       const {data: result, error} = await supabase.rpc('get_pending_approvals', {
@@ -49,13 +58,20 @@
         p_offset: 0
       });
 
+      // Guard against setting state after unmount
+      if (!isMounted) return;
+
       if (error) throw error;
       approvals = result || [];
     } catch (err) {
       console.error('Error fetching approvals:', err);
-      toastState?.show(`Failed to fetch approvals: ${err.message}`);
+      if (isMounted) {
+        toastState?.show(`Failed to fetch approvals: ${err.message}`);
+      }
     } finally {
-      loading = false;
+      if (isMounted) {
+        loading = false;
+      }
     }
   }
 
@@ -221,10 +237,22 @@
     return 'confidence-very-low';
   }
 
+  // Use $effect with cleanup pattern for Svelte 5
+  // The effect triggers when selectedStatus changes
   $effect(() => {
-    if (selectedStatus !== undefined) {
+    // Capture current status for this effect run
+    const currentStatus = selectedStatus;
+
+    // Only fetch if we have a valid status and supabase client
+    if (currentStatus !== undefined && supabase && isMounted) {
       fetchApprovals();
     }
+
+    // Cleanup function - called when effect re-runs or component unmounts
+    return () => {
+      // Nothing specific to clean up here, but the pattern is important
+      // The isMounted check in fetchApprovals handles stale requests
+    };
   });
 </script>
 

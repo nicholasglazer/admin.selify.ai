@@ -7,6 +7,7 @@
   import PMBoard from './PMBoard.svelte';
   import IssueModal from './IssueModal.svelte';
   import NLTaskCreator from './NLTaskCreator.svelte';
+  import ManualTaskCreator from './ManualTaskCreator.svelte';
 
   let {data} = $props();
 
@@ -47,26 +48,21 @@
   let columnCounts = $derived(pmState.getColumnCounts());
   let selectedIssue = $derived(pmState.selectedIssue);
   let nlCreatorOpen = $derived(pmState.nlCreator?.isOpen ?? false);
+  let manualCreatorOpen = $derived(pmState.manualCreator?.isOpen ?? false);
 
   // Cleanup on destroy - reset singleton to prevent memory leaks
   onDestroy(() => {
     resetPMBoardState();
   });
 
-  // Open NL Task Creator
-  function handleNewTask() {
+  // Open AI Task Creator
+  function handleAITask() {
     pmState.openNLCreator();
   }
 
-  // Quick add (bypass AI, direct create)
-  async function handleQuickAdd() {
-    await pmState.addIssue({
-      title: 'New Task',
-      description: '',
-      status: 'backlog',
-      priority: 'medium',
-      issue_type: 'task'
-    });
+  // Open Manual Task Creator
+  function handleManualTask() {
+    pmState.openManualCreator();
   }
 </script>
 
@@ -91,12 +87,13 @@
           <span class="stat-label">Review</span>
         </div>
       </div>
-      <button class="btn-quick-add" onclick={handleQuickAdd} title="Quick add (no AI)">
+      <button class="btn-manual-add" onclick={handleManualTask} title="Create task manually">
         <Plus size={16} />
+        <span>Manual</span>
       </button>
-      <Button variant="primary" onclick={handleNewTask}>
+      <Button variant="primary" onclick={handleAITask}>
         <Sparkles size={16} />
-        New Task
+        AI Task
       </Button>
     {/snippet}
   </PageHeader>
@@ -110,6 +107,10 @@
 
   {#if nlCreatorOpen}
     <NLTaskCreator />
+  {/if}
+
+  {#if manualCreatorOpen}
+    <ManualTaskCreator />
   {/if}
 </div>
 
@@ -136,10 +137,11 @@
     @apply text-xs text-base04;
   }
 
-  .btn-quick-add {
-    @apply p-2 rounded-lg;
+  .btn-manual-add {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg;
     @apply bg-base02 text-base05 border border-base03;
     @apply hover:bg-base03 hover:text-base06;
     @apply transition-colors;
+    @apply text-sm font-medium;
   }
 </style>

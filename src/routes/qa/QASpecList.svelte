@@ -1,5 +1,5 @@
 <script>
-  import {getContext} from 'svelte';
+  import {getContext, onDestroy} from 'svelte';
   import {Badge} from '@miozu/jera';
 
   const qaState = getContext('qaState');
@@ -28,6 +28,14 @@
       qaState.setFilter('search', searchValue);
     }, 200);
   }
+
+  // Cleanup on destroy to prevent memory leaks
+  onDestroy(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+      searchTimeout = null;
+    }
+  });
 
   function formatDate(dateStr) {
     if (!dateStr) return 'Never';

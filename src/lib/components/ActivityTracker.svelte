@@ -63,11 +63,15 @@
   let tickInterval = null;
   let tick = $state(0);
 
+  // Track if we initiated the stream connection (to clean it up properly)
+  let initiatedStream = false;
+
   onMount(() => {
     // Connect to SSE stream when mounted
     if (temporalState) {
       temporalState.fetchActiveProcesses();
       temporalState.connectToActiveStream();
+      initiatedStream = true;
     }
 
     // Update durations every second
@@ -77,8 +81,18 @@
   });
 
   onDestroy(() => {
+    // Clear the tick interval
     if (tickInterval) {
       clearInterval(tickInterval);
+      tickInterval = null;
+    }
+
+    // Only disconnect the SSE stream if there are no active processes
+    // If there are active processes and we're navigating to /temporal,
+    // the temporal page will manage the connection
+    // If there are no active processes, we should clean up
+    if (initiatedStream && temporalState && !temporalState.hasActive) {
+      temporalState.disconnectStream();
     }
   });
 </script>

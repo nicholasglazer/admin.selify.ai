@@ -145,12 +145,13 @@ The admin dashboard calls the backend admin API:
 
 ### Key Endpoints
 
-| Endpoint                       | Purpose                   |
-| ------------------------------ | ------------------------- |
-| POST /api/admin/team/onboard   | Start onboarding workflow |
-| GET /api/admin/team            | List team members         |
-| GET /api/admin/workspaces      | List workspaces           |
-| GET /api/admin/services/health | Service health status     |
+| Endpoint                       | Purpose                    |
+| ------------------------------ | -------------------------- |
+| POST /api/admin/team/onboard   | Start onboarding workflow  |
+| GET /api/admin/team            | List team members          |
+| GET /api/admin/workspaces      | List workspaces            |
+| GET /api/admin/services/health | Service health status      |
+| POST /api/pm/generate-task     | Generate task from NL      |
 | POST /api/qa/generate-test     | Generate Playwright from NL |
 | POST /api/qa/execute-run       | Execute test run           |
 
