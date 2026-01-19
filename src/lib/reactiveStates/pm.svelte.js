@@ -88,6 +88,18 @@ export class PMBoardReactiveState {
   columnDragGhost = $state(null);
   columnDragOffset = $state({x: 0, y: 0});
 
+  // NL Task Creator State
+  nlCreator = $state({
+    isOpen: false,
+    isGenerating: false,
+    nlDescription: '',
+    generatedTask: null,
+    error: null
+  });
+
+  // API base URL for AI endpoints
+  apiBaseUrl = null;
+
   // Toast function reference
   showToast = null;
 
@@ -101,6 +113,7 @@ export class PMBoardReactiveState {
     this.boardSummary = initialData.boardSummary || {};
     this.showToast = initialData.showToast || null;
     this.supabase = initialData.supabase || null;
+    this.apiBaseUrl = initialData.apiBaseUrl || 'https://api.selify.ai';
     this.isLoading = false;
   }
 
@@ -242,6 +255,137 @@ export class PMBoardReactiveState {
     this.selectedIssue = null;
   }
 
+  // ============================================
+  // NL TASK CREATOR METHODS
+  // ============================================
+
+  // Open NL task creator
+  openNLCreator() {
+    this.nlCreator = {
+      isOpen: true,
+      isGenerating: false,
+      nlDescription: '',
+      generatedTask: null,
+      error: null
+    };
+  }
+
+  // Close NL task creator
+  closeNLCreator() {
+    this.nlCreator = {
+      isOpen: false,
+      isGenerating: false,
+      nlDescription: '',
+      generatedTask: null,
+      error: null
+    };
+  }
+
+  // Set NL description
+  setNLDescription(description) {
+    this.nlCreator = {...this.nlCreator, nlDescription: description, error: null};
+  }
+
+  // Generate task from NL description using DeepSeek
+  async generateTaskFromNL() {
+    if (!this.nlCreator.nlDescription.trim()) {
+      this.nlCreator = {...this.nlCreator, error: 'Please enter a task description'};
+      return;
+    }
+
+    this.nlCreator = {...this.nlCreator, isGenerating: true, error: null};
+
+    try {
+      const response = await fetch('/api/pm/generate-task', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          description: this.nlCreator.nlDescription,
+          team_members: this.teamMembers.map((m) => ({
+            id: m.id,
+            name: m.display_name || m.full_name,
+            email: m.email
+          })),
+          existing_labels: this.getExistingLabels()
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      this.nlCreator = {
+        ...this.nlCreator,
+        isGenerating: false,
+        generatedTask: result.task
+      };
+    } catch (error) {
+      console.error('Failed to generate task from NL:', error);
+      this.nlCreator = {
+        ...this.nlCreator,
+        isGenerating: false,
+        error: error.message || 'Failed to generate task. Please try again.'
+      };
+    }
+  }
+
+  // Get existing labels from all tasks for AI context
+  getExistingLabels() {
+    const labels = new Set();
+    for (const issue of this.issues) {
+      if (issue.labels) {
+        for (const label of issue.labels) {
+          labels.add(label);
+        }
+      }
+    }
+    return Array.from(labels);
+  }
+
+  // Update generated task field (for user edits before saving)
+  updateGeneratedTaskField(field, value) {
+    if (this.nlCreator.generatedTask) {
+      this.nlCreator = {
+        ...this.nlCreator,
+        generatedTask: {
+          ...this.nlCreator.generatedTask,
+          [field]: value
+        }
+      };
+    }
+  }
+
+  // Save generated task to database
+  async saveGeneratedTask() {
+    if (!this.nlCreator.generatedTask) return null;
+
+    const task = this.nlCreator.generatedTask;
+    const result = await this.addIssue({
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      issue_type: task.issue_type,
+      labels: task.labels || [],
+      assignee_id: task.assignee_id || null,
+      status: task.status || 'backlog',
+      source: 'ai_generated',
+      ai_analysis: task.ai_analysis || null,
+      ai_confidence: task.ai_confidence || null,
+      ai_automatable: task.ai_automatable || false
+    });
+
+    if (result) {
+      this.closeNLCreator();
+    }
+
+    return result;
+  }
+
   // Add a new task (persists to internal.tasks)
   async addIssue(issueData) {
     const newTaskData = {
@@ -252,7 +396,10 @@ export class PMBoardReactiveState {
       issue_type: issueData.issue_type || 'task',
       labels: issueData.labels || [],
       assignee_id: issueData.assignee_id || null,
-      source: issueData.source || 'manual'
+      source: issueData.source || 'manual',
+      ai_analysis: issueData.ai_analysis || null,
+      ai_confidence: issueData.ai_confidence || null,
+      ai_automatable: issueData.ai_automatable || false
     };
 
     try {

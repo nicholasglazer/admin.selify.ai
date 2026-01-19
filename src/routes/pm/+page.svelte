@@ -1,11 +1,12 @@
 <script>
   import {setContext, getContext, onMount, onDestroy} from 'svelte';
-  import {Plus} from '@lucide/svelte';
+  import {Plus, Sparkles} from '@lucide/svelte';
   import {Button} from '@miozu/jera';
   import {PageHeader} from '$components';
   import {getPMBoardState, resetPMBoardState} from '$lib/reactiveStates';
   import PMBoard from './PMBoard.svelte';
   import IssueModal from './IssueModal.svelte';
+  import NLTaskCreator from './NLTaskCreator.svelte';
 
   let {data} = $props();
 
@@ -20,7 +21,8 @@
     teamMembers: data.teamMembers || [],
     boardSummary: data.boardSummary || {},
     showToast: (msg) => toastState?.show(msg),
-    supabase: null
+    supabase: null,
+    apiBaseUrl: data.apiBaseUrl
   });
 
   // Provide PM state to child components
@@ -44,31 +46,27 @@
   let totalIssues = $derived(pmState.totalIssues);
   let columnCounts = $derived(pmState.getColumnCounts());
   let selectedIssue = $derived(pmState.selectedIssue);
+  let nlCreatorOpen = $derived(pmState.nlCreator?.isOpen ?? false);
 
   // Cleanup on destroy - reset singleton to prevent memory leaks
   onDestroy(() => {
     resetPMBoardState();
   });
 
-  // Track loading state for new issue creation
-  let isCreatingTask = $state(false);
+  // Open NL Task Creator
+  function handleNewTask() {
+    pmState.openNLCreator();
+  }
 
-  // Handle new issue creation
-  async function handleNewIssue() {
-    if (isCreatingTask) return;
-    isCreatingTask = true;
-
-    try {
-      await pmState.addIssue({
-        title: 'New Task',
-        description: '',
-        status: 'backlog',
-        priority: 'medium',
-        issue_type: 'task'
-      });
-    } finally {
-      isCreatingTask = false;
-    }
+  // Quick add (bypass AI, direct create)
+  async function handleQuickAdd() {
+    await pmState.addIssue({
+      title: 'New Task',
+      description: '',
+      status: 'backlog',
+      priority: 'medium',
+      issue_type: 'task'
+    });
   }
 </script>
 
@@ -93,17 +91,25 @@
           <span class="stat-label">Review</span>
         </div>
       </div>
-      <Button variant="primary" onclick={handleNewIssue} disabled={isCreatingTask}>
+      <button class="btn-quick-add" onclick={handleQuickAdd} title="Quick add (no AI)">
         <Plus size={16} />
-        {isCreatingTask ? 'Creating...' : 'New Task'}
+      </button>
+      <Button variant="primary" onclick={handleNewTask}>
+        <Sparkles size={16} />
+        New Task
       </Button>
     {/snippet}
   </PageHeader>
 
   <PMBoard />
 
+  <!-- Modals -->
   {#if selectedIssue}
     <IssueModal issue={selectedIssue} onClose={() => pmState.closeIssue()} />
+  {/if}
+
+  {#if nlCreatorOpen}
+    <NLTaskCreator />
   {/if}
 </div>
 
@@ -128,5 +134,12 @@
 
   .stat-label {
     @apply text-xs text-base04;
+  }
+
+  .btn-quick-add {
+    @apply p-2 rounded-lg;
+    @apply bg-base02 text-base05 border border-base03;
+    @apply hover:bg-base03 hover:text-base06;
+    @apply transition-colors;
   }
 </style>

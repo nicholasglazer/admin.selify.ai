@@ -1,13 +1,17 @@
+import {env} from '$env/dynamic/private';
+
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({locals, parent}) => {
   const {supabase} = locals;
+  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
 
   if (!supabase) {
     return {
       issues: [],
       teamMembers: [],
       boardSummary: {},
-      columns: null
+      columns: null,
+      apiBaseUrl
     };
   }
 
@@ -73,7 +77,8 @@ export const load = async ({locals, parent}) => {
           return acc;
         }, {})
       },
-      columns: null // Use defaults from pmState
+      columns: null, // Use defaults from pmState
+      apiBaseUrl
     };
   } catch (err) {
     console.error('[PM Board] Unexpected error:', err);
@@ -81,7 +86,8 @@ export const load = async ({locals, parent}) => {
       issues: [],
       teamMembers: [],
       boardSummary: {},
-      columns: null
+      columns: null,
+      apiBaseUrl
     };
   }
 };
