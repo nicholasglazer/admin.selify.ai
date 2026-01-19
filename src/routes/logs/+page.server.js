@@ -16,28 +16,62 @@ export const load = async ({locals, parent, fetch, url}) => {
     'Content-Type': 'application/json'
   };
 
-  // Get query params for future use when SigNoz integration is ready
+  // Get query params
   const service = url.searchParams.get('service') || null;
   const level = url.searchParams.get('level') || null;
   const hours = parseInt(url.searchParams.get('hours') || '1');
+  const search = url.searchParams.get('search') || null;
 
-  // Fetch services for filter dropdown (logs API not yet implemented - pending SigNoz integration)
-  const servicesResponse = await fetch(`${apiBaseUrl}/api/ops/health`, {headers}).catch(() => null);
+  // Build query string for logs
+  const logsParams = new URLSearchParams();
+  if (service) logsParams.set('service', service);
+  if (level) logsParams.set('level', level);
+  logsParams.set('hours', hours.toString());
+  if (search) logsParams.set('search', search);
+  logsParams.set('limit', '200');
 
+  // Fetch logs and services in parallel
+  const [logsResponse, servicesResponse] = await Promise.all([
+    fetch(`${apiBaseUrl}/api/ops/logs?${logsParams}`, {headers}).catch(() => null),
+    fetch(`${apiBaseUrl}/api/ops/logs/services?hours=24`, {headers}).catch(() => null)
+  ]);
+
+  // Parse responses
+  let logs = [];
+  let total = 0;
+  let hasMore = false;
   let services = [];
-  if (servicesResponse?.ok) {
-    services = await servicesResponse.json();
+
+  if (logsResponse?.ok) {
+    const data = await logsResponse.json();
+    logs = data.logs || [];
+    total = data.total || 0;
+    hasMore = data.has_more || false;
   }
 
-  // Logs will be fetched from SigNoz when integration is complete
-  // For now, return empty array - the UI shows "SigNoz Integration Coming Soon"
+  if (servicesResponse?.ok) {
+    const data = await servicesResponse.json();
+    services = data.services || [];
+  }
+
+  // Compute stats from logs
+  const stats = {
+    total: logs.length,
+    errors: logs.filter((l) => l.severity_text?.toLowerCase() === 'error').length,
+    warnings: logs.filter((l) => l.severity_text?.toLowerCase() === 'warn' || l.severity_text?.toLowerCase() === 'warning').length,
+    info: logs.filter((l) => l.severity_text?.toLowerCase() === 'info').length
+  };
+
   return {
-    logs: [],
-    services: services.map((s) => s.name).sort(),
+    logs,
+    services,
+    stats,
+    hasMore,
     filters: {
       service,
       level,
-      hours
+      hours,
+      search
     }
   };
 };
