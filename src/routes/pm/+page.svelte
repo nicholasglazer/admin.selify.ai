@@ -1,48 +1,74 @@
 <script>
   import {setContext, getContext, onMount, onDestroy} from 'svelte';
+  import {Plus} from '@lucide/svelte';
+  import {Button} from '@miozu/jera';
   import {PageHeader} from '$components';
-  import {getPMBoardState} from '$lib/reactiveStates';
+  import {getPMBoardState, resetPMBoardState} from '$lib/reactiveStates';
   import PMBoard from './PMBoard.svelte';
   import IssueModal from './IssueModal.svelte';
 
   let {data} = $props();
 
-  // Get toast state and supabase from parent context
+  // Get contexts from parent layout
   const toastState = getContext('toastState');
-  const supabase = getContext('supabase');
+  const supabaseHolder = getContext('supabase');
 
-  // Initialize PM board state with supabase for persistence
+  // Initialize PM board state
   const pmState = getPMBoardState({
-    issues: data.issues,
+    issues: data.issues || [],
     columns: data.columns,
-    teamMembers: data.teamMembers,
-    boardSummary: data.boardSummary,
+    teamMembers: data.teamMembers || [],
+    boardSummary: data.boardSummary || {},
     showToast: (msg) => toastState?.show(msg),
-    supabase
+    supabase: null
   });
 
   // Provide PM state to child components
   setContext('pmState', pmState);
+
+  // Set supabase client when it becomes available
+  onMount(() => {
+    // Poll for supabase client (it's set async in layout)
+    const checkSupabase = setInterval(() => {
+      if (supabaseHolder?.client) {
+        pmState.supabase = supabaseHolder.client;
+        clearInterval(checkSupabase);
+      }
+    }, 50);
+
+    // Cleanup interval if component unmounts
+    return () => clearInterval(checkSupabase);
+  });
 
   // Derived values
   let totalIssues = $derived(pmState.totalIssues);
   let columnCounts = $derived(pmState.getColumnCounts());
   let selectedIssue = $derived(pmState.selectedIssue);
 
-  // Cleanup on destroy
+  // Cleanup on destroy - reset singleton to prevent memory leaks
   onDestroy(() => {
-    pmState.cleanup();
+    resetPMBoardState();
   });
+
+  // Track loading state for new issue creation
+  let isCreatingTask = $state(false);
 
   // Handle new issue creation
   async function handleNewIssue() {
-    await pmState.addIssue({
-      title: 'New Task',
-      description: '',
-      status: 'backlog',
-      priority: 'medium',
-      issue_type: 'task'
-    });
+    if (isCreatingTask) return;
+    isCreatingTask = true;
+
+    try {
+      await pmState.addIssue({
+        title: 'New Task',
+        description: '',
+        status: 'backlog',
+        priority: 'medium',
+        issue_type: 'task'
+      });
+    } finally {
+      isCreatingTask = false;
+    }
   }
 </script>
 
@@ -67,22 +93,10 @@
           <span class="stat-label">Review</span>
         </div>
       </div>
-      <button class="btn-new-task" onclick={handleNewIssue}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        New Task
-      </button>
+      <Button variant="primary" onclick={handleNewIssue} disabled={isCreatingTask}>
+        <Plus size={16} />
+        {isCreatingTask ? 'Creating...' : 'New Task'}
+      </Button>
     {/snippet}
   </PageHeader>
 
@@ -97,7 +111,7 @@
   @reference '$theme';
 
   .pm-page {
-    @apply flex flex-col h-full;
+    @apply flex flex-col h-full w-full;
   }
 
   .header-stats {
@@ -114,13 +128,5 @@
 
   .stat-label {
     @apply text-xs text-base04;
-  }
-
-  .btn-new-task {
-    @apply flex items-center gap-2 px-4 py-2;
-    @apply bg-base0D text-white rounded-lg;
-    @apply text-sm font-medium;
-    @apply transition-all duration-150;
-    @apply hover:bg-base0D/90;
   }
 </style>

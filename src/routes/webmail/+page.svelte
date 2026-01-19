@@ -228,7 +228,7 @@
   @reference '$theme';
 
   .webmail-container {
-    @apply flex flex-col h-full;
+    @apply flex flex-col h-full w-full;
   }
 
   /* Empty State */

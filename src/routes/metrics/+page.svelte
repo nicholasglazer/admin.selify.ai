@@ -104,7 +104,7 @@
   @reference '$theme';
 
   .metrics-page {
-    @apply max-w-5xl mx-auto;
+    @apply w-full;
   }
 
   /* Header */

@@ -19,7 +19,7 @@
   let showFilters = $state(false);
 
   // Get mailbox display name
-  let mailboxName = $derived(() => {
+  let mailboxName = $derived.by(() => {
     const mb = mail.mailboxes.find(m => m.path === mail.currentMailbox);
     if (mb?.specialUse) {
       const names = {

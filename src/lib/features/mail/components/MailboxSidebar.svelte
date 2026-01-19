@@ -19,7 +19,7 @@
   import {Badge} from '@miozu/jera';
   import AccountSwitcher from './AccountSwitcher.svelte';
 
-  let {mail, onCompose, class: className = ''} = $props();
+  let {mail, class: className = ''} = $props();
 
   // Map special use to icons
   const specialUseIcons = {
@@ -60,7 +60,7 @@
 
   <!-- Compose Button -->
   <div class="compose-section">
-    <Button variant="primary md" class="compose-btn" onclick={onCompose}>
+    <Button variant="primary md" class="compose-btn" onclick={() => mail.openCompose()}>
       <Plus size={18} />
       Compose
     </Button>

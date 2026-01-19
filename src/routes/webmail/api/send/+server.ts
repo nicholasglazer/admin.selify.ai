@@ -1,24 +1,21 @@
 /**
- * Send Email API
- *
- * POST: Send a new email or reply/forward
+ * Send Email API - Proxy to backend webmail-api
  */
-
 import {json} from '@sveltejs/kit';
 import type {RequestHandler} from './$types';
-import {getAccountCredentials} from '$features/mail/server/credentials';
-import {sendEmail} from '$features/mail/server/smtp';
-import type {ComposeDraft} from '$features/mail/types';
+import {env} from '$env/dynamic/private';
 
-export const POST: RequestHandler = async ({locals, request}) => {
+const API_BASE = env.API_BASE_URL || 'https://api.selify.ai';
+
+export const POST: RequestHandler = async ({locals, request, fetch}) => {
   const {session} = await locals.safeGetSession();
   if (!session?.user?.id) {
     return json({success: false, error: 'Unauthorized'}, {status: 401});
   }
 
   try {
-    const body = await request.json();
-    const {accountId, to, cc, bcc, subject, html, text, replyTo, inReplyTo, references} = body;
+    const reqBody = await request.json();
+    const {accountId, to, cc, bcc, subject, html, text, body, bodyType, inReplyTo, replyTo} = reqBody;
 
     // Validate required fields
     if (!accountId) {
@@ -29,57 +26,38 @@ export const POST: RequestHandler = async ({locals, request}) => {
       return json({success: false, error: 'At least one recipient required'}, {status: 400});
     }
 
-    if (!subject && !html && !text) {
-      return json({success: false, error: 'Subject or body required'}, {status: 400});
-    }
+    // Build draft for backend - support both old format (html/text) and new format (body/bodyType)
+    const emailBody = body || html || text || '';
+    const emailBodyType = bodyType || (html ? 'html' : 'text');
 
-    // Get account credentials
-    const credentials = await getAccountCredentials(locals.supabase, session.user.id, accountId);
-    if (!credentials) {
-      return json({success: false, error: 'Account not found'}, {status: 404});
-    }
-
-    // Build draft object for sendEmail
-    const draft: ComposeDraft = {
-      accountId,
+    const draft = {
       to,
       cc: cc || [],
       bcc: bcc || [],
       subject: subject || '',
-      body: html || text || '',
-      bodyType: (html ? 'html' : 'text') as 'text' | 'html',
-      replyTo:
-        inReplyTo ?
-          {
-            messageId: inReplyTo,
-            uid: 0,
-            mailbox: '',
-            type: 'reply' as const
-          }
-        : undefined
+      body: emailBody,
+      bodyType: emailBodyType,
+      replyTo: replyTo || (inReplyTo ? { messageId: inReplyTo, type: 'reply' } : undefined)
     };
 
-    // Send the email
-    const result = await sendEmail({
-      credentials,
-      draft
+    const response = await fetch(`${API_BASE}/api/webmail/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': env.SUPABASE_SERVICE_KEY || '',
+        'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`
+      },
+      body: JSON.stringify({
+        userId: session.user.id,
+        accountId,
+        draft
+      })
     });
 
-    if (!result.success) {
-      return json({success: false, error: result.error}, {status: 500});
-    }
-
-    // Note: Most SMTP servers automatically save to Sent folder
-    // If needed, implement IMAP append here using:
-    // const client = await getImapClient(session.user.id, credentials, accountId);
-    // releaseConnection(session.user.id, accountId);
-
-    return json({
-      success: true,
-      messageId: result.messageId
-    });
+    const data = await response.json();
+    return json(data, {status: response.status});
   } catch (error) {
-    console.error('[API/send] Error:', error);
+    console.error('[API/send] Proxy error:', error);
     return json({success: false, error: 'Failed to send email'}, {status: 500});
   }
 };

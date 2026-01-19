@@ -247,8 +247,7 @@ jera components work out-of-the-box with this codebase:
 
 ### Reusable Layout Utilities
 
-Imported from `@miozu/jera/layouts` in `app.css`. Uses CSS `@layer jera-layouts` for proper specificity.
-These utilities are **shared across all miozu apps** (admin, dash) for consistency.
+Located in `src/lib/styles/layout.css`. Uses CSS `@layer components` for proper specificity with Tailwind.
 
 | Class | Usage |
 |-------|-------|
@@ -266,8 +265,6 @@ These utilities are **shared across all miozu apps** (admin, dash) for consisten
 | `.tab-nav` / `.tab-btn` | Tab navigation |
 | `.btn-primary` / `.btn-secondary` / `.btn-ghost` | Button variants |
 | `.status-dot` / `.status-dot-ok` / `.status-dot-warn` | Status indicators |
-
-**Source:** `@miozu/jera/src/layouts/index.css` - edit there to update all apps.
 
 ### Page Template
 
@@ -302,9 +299,9 @@ All pages should follow this structure:
 
 ### CSS Best Practices
 
-1. **Use jera layout classes first** - Check `@miozu/jera/layouts` before writing custom styles
+1. **Use layout.css classes first** - Check `src/lib/styles/layout.css` before writing custom styles
 2. **Page-specific only** - Component styles should only contain truly unique patterns
-3. **CSS Layers** - jera uses `@layer jera-layouts`, your styles naturally override
+3. **CSS Layers** - Layout uses `@layer components` for proper Tailwind specificity
 4. **No max-width centering** - Pages use full width, root layout provides padding
 5. **Design tokens** - Use CSS variables from `theme.css` for colors
 

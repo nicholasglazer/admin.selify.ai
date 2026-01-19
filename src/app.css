@@ -1,8 +1,8 @@
 /* Theme includes tailwindcss and all theme extensions */
 @import './lib/styles/theme.css';
 
-/* jera layout utilities (optional - reusable across miozu apps) */
-@import '@miozu/jera/layouts';
+/* Reusable layout utilities */
+@import './lib/styles/layout.css';
 
 /* Global reset */
 * {

@@ -36,6 +36,13 @@
           // Persist
           localStorage.setItem('admin-theme', theme);
           document.cookie = `admin-theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+
+          // Enable transitions after initial paint (prevents FOUC)
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              document.documentElement.classList.add('transitions-enabled');
+            });
+          });
         } catch (e) {
           // Fallback to dark on error
           document.documentElement.setAttribute('data-theme', 'miozu-dark');

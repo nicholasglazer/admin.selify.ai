@@ -192,8 +192,9 @@
    Global Styles
    ============================================================================ */
 
-/* Smooth theme transitions */
-:root {
+/* Theme transitions - only apply after initial load to prevent FOUC */
+/* The 'transitions-enabled' class is added by app.html after DOMContentLoaded */
+:root.transitions-enabled {
   transition:
     background-color 200ms ease-in-out,
     color 200ms ease-in-out;

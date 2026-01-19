@@ -400,7 +400,7 @@
   @reference '$theme';
 
   .db-page {
-    @apply max-w-5xl mx-auto;
+    @apply w-full;
   }
 
   .header {

@@ -73,6 +73,21 @@ export class PMBoardReactiveState {
     labels: []
   });
 
+  // Column Editing State
+  isEditingColumns = $state(false);
+  editingColumnId = $state(null);
+  columnEditData = $state({});
+  showingIconPicker = $state(null);
+  showingColorPicker = $state(null);
+  pendingColumnChanges = $state(new Set());
+
+  // Column Dragging State
+  draggedColumn = $state(null);
+  dragOverColumnId = $state(null);
+  dragType = $state(null); // 'issue' | 'column'
+  columnDragGhost = $state(null);
+  columnDragOffset = $state({x: 0, y: 0});
+
   // Toast function reference
   showToast = null;
 
@@ -439,13 +454,16 @@ export class PMBoardReactiveState {
     this.draggedIssue = null;
     this.hoveredColumn = null;
     this.isDragging = false;
+    this.dragType = null;
   }
 
   // Custom drag implementation (like Notion/Trello)
+  // Note: Event listeners are handled via svelte:document in PMBoard.svelte
   startCustomDrag(element, issue, event) {
     event.preventDefault();
 
     this.isDragging = true;
+    this.dragType = 'issue';
     this.draggedIssue = issue;
     this.hoveredColumn = null;
 
@@ -456,33 +474,62 @@ export class PMBoardReactiveState {
       y: event.clientY - rect.top
     };
 
-    // Create ghost element
-    const ghost = element.cloneNode(true);
-    ghost.id = 'pm-drag-ghost';
-    ghost.style.position = 'fixed';
-    ghost.style.pointerEvents = 'none';
-    ghost.style.zIndex = '10000';
-    ghost.style.opacity = '0.9';
-    ghost.style.width = rect.width + 'px';
-    ghost.style.transform = `translate(${event.clientX - this.customDragOffset.x}px, ${event.clientY - this.customDragOffset.y}px)`;
-    ghost.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
-    ghost.style.willChange = 'transform';
-    ghost.classList.remove('hover');
+    // Create ghost element (browser-only)
+    if (typeof document !== 'undefined') {
+      const ghost = element.cloneNode(true);
+      ghost.id = 'pm-drag-ghost';
+      ghost.style.position = 'fixed';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.zIndex = '10000';
+      ghost.style.opacity = '0.9';
+      ghost.style.width = rect.width + 'px';
+      ghost.style.height = rect.height + 'px';
+      ghost.style.left = '0';
+      ghost.style.top = '0';
+      ghost.style.transform = `translate(${event.clientX - this.customDragOffset.x}px, ${event.clientY - this.customDragOffset.y}px)`;
+      ghost.style.transition = 'none';
+      ghost.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+      ghost.style.willChange = 'transform';
 
-    document.body.appendChild(ghost);
-    this.customDragGhost = ghost;
+      // Remove any hover/active states from ghost
+      ghost.classList.remove('hover', 'hovered', 'dragging', 'active');
 
-    // Add global event listeners
-    document.addEventListener('mousemove', this.handleDragMove);
-    document.addEventListener('mouseup', this.handleDragEnd);
+      // Preserve all computed styles for proper color inheritance
+      if (typeof window !== 'undefined') {
+        const preserveStyles = (ghostEl, originalEl) => {
+          const ghostChildren = ghostEl.querySelectorAll('*');
+          const originalChildren = originalEl.querySelectorAll('*');
 
-    // Add visual feedback
-    element.classList.add('dragging');
-    document.body.classList.add('pm-dragging');
+          ghostChildren.forEach((child, index) => {
+            if (originalChildren[index]) {
+              const computed = window.getComputedStyle(originalChildren[index]);
+              // Preserve color-related properties
+              child.style.color = computed.color;
+              child.style.backgroundColor = computed.backgroundColor;
+              child.style.borderColor = computed.borderColor;
+
+              // Special handling for SVG elements
+              if (child.tagName === 'svg' || child.tagName === 'SVG') {
+                child.style.fill = computed.fill !== 'rgb(0, 0, 0)' ? computed.fill : 'currentColor';
+                child.style.stroke = computed.stroke;
+              }
+            }
+          });
+        };
+        preserveStyles(ghost, element);
+      }
+
+      document.body.appendChild(ghost);
+      this.customDragGhost = ghost;
+
+      // Add visual feedback
+      element.classList.add('dragging');
+    }
   }
 
+  // Called via svelte:document onmousemove when isDragging && dragType === 'issue'
   handleDragMove = (event) => {
-    if (!this.customDragGhost) return;
+    if (!this.customDragGhost || typeof window === 'undefined') return;
 
     if (this.dragAnimationFrame) {
       cancelAnimationFrame(this.dragAnimationFrame);
@@ -500,16 +547,18 @@ export class PMBoardReactiveState {
         this.hoverCheckThrottle = setTimeout(() => {
           this.hoverCheckThrottle = null;
 
-          const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
-          if (elementBelow) {
-            const columnEl = elementBelow.closest('.pm-column');
-            if (columnEl) {
-              const columnId = columnEl.dataset.columnId;
-              if (columnId !== this.hoveredColumn) {
-                this.setHoveredColumn(columnId);
+          if (typeof document !== 'undefined') {
+            const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+            if (elementBelow) {
+              const columnEl = elementBelow.closest('.pm-column');
+              if (columnEl) {
+                const columnId = columnEl.dataset.columnId;
+                if (columnId !== this.hoveredColumn) {
+                  this.setHoveredColumn(columnId);
+                }
+              } else if (this.hoveredColumn) {
+                this.setHoveredColumn(null);
               }
-            } else if (this.hoveredColumn) {
-              this.setHoveredColumn(null);
             }
           }
         }, 16);
@@ -517,8 +566,9 @@ export class PMBoardReactiveState {
     });
   };
 
+  // Called via svelte:document onmouseup when isDragging && dragType === 'issue'
   handleDragEnd = async (event) => {
-    if (!this.isDragging) return;
+    if (!this.isDragging || this.dragType !== 'issue') return;
 
     const targetColumn = this.hoveredColumn;
 
@@ -532,20 +582,18 @@ export class PMBoardReactiveState {
       this.hoverCheckThrottle = null;
     }
 
-    // Remove event listeners
-    document.removeEventListener('mousemove', this.handleDragMove);
-    document.removeEventListener('mouseup', this.handleDragEnd);
-
     // Fade out ghost
     if (this.customDragGhost) {
       this.customDragGhost.style.opacity = '0';
       this.customDragGhost.style.transition = 'opacity 0.15s ease-out';
     }
 
-    // Remove dragging class
-    const draggedEl = document.querySelector('.issue-card.dragging');
-    if (draggedEl) {
-      draggedEl.classList.remove('dragging');
+    // Remove dragging class (browser-only)
+    if (typeof document !== 'undefined') {
+      const draggedEl = document.querySelector('.issue-card.dragging');
+      if (draggedEl) {
+        draggedEl.classList.remove('dragging');
+      }
     }
 
     // Handle the drop
@@ -563,7 +611,6 @@ export class PMBoardReactiveState {
 
     // Clear states
     this.clearDragStates();
-    document.body.classList.remove('pm-dragging');
   };
 
   // Set filter
@@ -600,16 +647,429 @@ export class PMBoardReactiveState {
     return this.issues.filter((i) => i.priority === priority);
   }
 
-  // Cleanup method
-  cleanup() {
+  // ============================================
+  // COLUMN EDITING METHODS
+  // ============================================
+
+  // Toggle column edit mode
+  toggleColumnEditMode() {
+    this.isEditingColumns = !this.isEditingColumns;
+    if (!this.isEditingColumns) {
+      // Exiting edit mode - save any pending changes
+      this.stopEditingColumn();
+      this.showingIconPicker = null;
+      this.showingColorPicker = null;
+    }
+  }
+
+  // Start editing a specific column's name
+  startEditingColumn(columnId) {
+    const column = this.columns.find((c) => c.id === columnId);
+    if (!column) return;
+
+    this.editingColumnId = columnId;
+    this.columnEditData = {
+      name: column.name,
+      icon: column.icon || '',
+      color: column.color || 'base0D'
+    };
+  }
+
+  // Stop editing column (discard or save handled separately)
+  stopEditingColumn() {
+    this.editingColumnId = null;
+    this.columnEditData = {};
+  }
+
+  // Update a field in the column edit data
+  updateColumnField(columnId, field, value) {
+    if (this.editingColumnId === columnId) {
+      this.columnEditData = {...this.columnEditData, [field]: value};
+    }
+  }
+
+  // Save column changes
+  saveColumnChanges(columnId) {
+    const columnIndex = this.columns.findIndex((c) => c.id === columnId);
+    if (columnIndex === -1) return;
+
+    const updates = this.columnEditData;
+    if (!updates.name || updates.name.trim() === '') return;
+
+    // Update the column
+    this.columns[columnIndex] = {
+      ...this.columns[columnIndex],
+      name: updates.name.trim(),
+      icon: updates.icon,
+      color: updates.color
+    };
+    this.columns = [...this.columns];
+
+    // TODO: Persist to database when columns table exists
+  }
+
+  // Create a new column at a specific position
+  createNewColumn(afterIndex = -1) {
+    const newId = `column_${Date.now()}`;
+    const newColumn = {
+      id: newId,
+      name: 'New Column',
+      description: '',
+      color: 'base0D',
+      icon: '',
+      order: afterIndex + 1
+    };
+
+    // Insert at position
+    if (afterIndex < 0) {
+      this.columns = [newColumn, ...this.columns];
+    } else if (afterIndex >= this.columns.length - 1) {
+      this.columns = [...this.columns, newColumn];
+    } else {
+      const before = this.columns.slice(0, afterIndex + 1);
+      const after = this.columns.slice(afterIndex + 1);
+      this.columns = [...before, newColumn, ...after];
+    }
+
+    // Update order values
+    this.columns = this.columns.map((col, idx) => ({...col, order: idx}));
+
+    // Auto-start editing the new column
+    this.startEditingColumn(newId);
+
+    if (this.showToast) {
+      this.showToast({
+        title: 'Column Created',
+        message: 'New column added. Click to rename.',
+        type: 'success',
+        duration: 3000
+      });
+    }
+  }
+
+  // Delete a column (only if empty)
+  deleteColumn(columnId) {
+    const issuesInColumn = this.issues.filter((i) => i.status === columnId);
+    if (issuesInColumn.length > 0) {
+      if (this.showToast) {
+        this.showToast({
+          title: 'Cannot Delete',
+          message: 'Move or delete all issues in this column first.',
+          type: 'error',
+          duration: 3000
+        });
+      }
+      return false;
+    }
+
+    this.columns = this.columns.filter((c) => c.id !== columnId);
+    this.columns = this.columns.map((col, idx) => ({...col, order: idx}));
+
+    if (this.showToast) {
+      this.showToast({
+        title: 'Column Deleted',
+        message: 'Column has been removed.',
+        type: 'info',
+        duration: 3000
+      });
+    }
+
+    return true;
+  }
+
+  // Reorder columns
+  reorderColumns(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+
+    const newColumns = [...this.columns];
+    const [removed] = newColumns.splice(fromIndex, 1);
+    newColumns.splice(toIndex, 0, removed);
+
+    // Update order values
+    this.columns = newColumns.map((col, idx) => ({...col, order: idx}));
+  }
+
+  // Toggle icon picker for a column
+  toggleIconPicker(columnId) {
+    this.showingIconPicker = this.showingIconPicker === columnId ? null : columnId;
+    this.showingColorPicker = null; // Close color picker
+  }
+
+  // Toggle color picker for a column
+  toggleColorPicker(columnId) {
+    this.showingColorPicker = this.showingColorPicker === columnId ? null : columnId;
+    this.showingIconPicker = null; // Close icon picker
+  }
+
+  // Select an icon for a column
+  selectIcon(columnId, iconName) {
+    const columnIndex = this.columns.findIndex((c) => c.id === columnId);
+    if (columnIndex !== -1) {
+      this.columns[columnIndex] = {...this.columns[columnIndex], icon: iconName};
+      this.columns = [...this.columns];
+
+      if (this.editingColumnId === columnId) {
+        this.columnEditData = {...this.columnEditData, icon: iconName};
+      }
+    }
+    this.showingIconPicker = null;
+  }
+
+  // Select a color for a column
+  selectColor(columnId, colorValue) {
+    const columnIndex = this.columns.findIndex((c) => c.id === columnId);
+    if (columnIndex !== -1) {
+      this.columns[columnIndex] = {...this.columns[columnIndex], color: colorValue};
+      this.columns = [...this.columns];
+
+      if (this.editingColumnId === columnId) {
+        this.columnEditData = {...this.columnEditData, color: colorValue};
+      }
+    }
+    this.showingColorPicker = null;
+  }
+
+  // Get available icons list
+  getAvailableIcons() {
+    return [
+      {name: '📋', label: 'Clipboard'},
+      {name: '📝', label: 'Note'},
+      {name: '🎯', label: 'Target'},
+      {name: '🚀', label: 'Rocket'},
+      {name: '⚡', label: 'Lightning'},
+      {name: '🔥', label: 'Fire'},
+      {name: '✅', label: 'Check'},
+      {name: '⏳', label: 'Hourglass'},
+      {name: '🔄', label: 'Refresh'},
+      {name: '🤖', label: 'Robot'},
+      {name: '👁️', label: 'Eye'},
+      {name: '🎨', label: 'Art'},
+      {name: '🐛', label: 'Bug'},
+      {name: '💡', label: 'Idea'},
+      {name: '⭐', label: 'Star'},
+      {name: '🔒', label: 'Lock'},
+      {name: '📦', label: 'Package'},
+      {name: '🧪', label: 'Test'},
+      {name: '📊', label: 'Chart'},
+      {name: '🎮', label: 'Game'},
+      {name: '💬', label: 'Chat'}
+    ];
+  }
+
+  // Get available colors list
+  getAvailableColors() {
+    return [
+      {value: 'base05', label: 'Gray'},
+      {value: 'base08', label: 'Red'},
+      {value: 'base09', label: 'Orange'},
+      {value: 'base0A', label: 'Yellow'},
+      {value: 'base0B', label: 'Green'},
+      {value: 'base0C', label: 'Cyan'},
+      {value: 'base0D', label: 'Blue'},
+      {value: 'base0E', label: 'Purple'},
+      {value: 'base0F', label: 'Brown'}
+    ];
+  }
+
+  // ============================================
+  // COLUMN DRAG AND DROP
+  // ============================================
+
+  // Start dragging a column
+  // Note: Event listeners are handled via svelte:document in PMBoard.svelte
+  startColumnDrag(element, columnId, event) {
+    event.preventDefault();
+
+    this.isDragging = true;
+    this.dragType = 'column';
+    this.draggedColumn = columnId;
+    this.dragOverColumnId = null;
+
+    // Calculate offset
+    const rect = element.getBoundingClientRect();
+    this.columnDragOffset = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
+
+    // Create ghost element (browser-only)
+    if (typeof document !== 'undefined') {
+      const ghost = element.cloneNode(true);
+      ghost.id = 'pm-column-drag-ghost';
+      ghost.style.position = 'fixed';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.zIndex = '10000';
+      ghost.style.opacity = '0.85';
+      ghost.style.width = rect.width + 'px';
+      ghost.style.height = rect.height + 'px';
+      ghost.style.left = '0';
+      ghost.style.top = '0';
+      ghost.style.transform = `translate(${event.clientX - this.columnDragOffset.x}px, ${event.clientY - this.columnDragOffset.y}px)`;
+      ghost.style.transition = 'none';
+      ghost.style.boxShadow = '0 15px 40px rgba(0,0,0,0.4)';
+      ghost.style.willChange = 'transform';
+      ghost.style.borderRadius = '12px';
+
+      // Remove any hover/active states from ghost
+      ghost.classList.remove('hover', 'hovered', 'dragging', 'drag-over', 'active');
+
+      // Preserve all computed styles for proper color inheritance
+      if (typeof window !== 'undefined') {
+        const preserveStyles = (ghostEl, originalEl) => {
+          const ghostChildren = ghostEl.querySelectorAll('*');
+          const originalChildren = originalEl.querySelectorAll('*');
+
+          ghostChildren.forEach((child, index) => {
+            if (originalChildren[index]) {
+              const computed = window.getComputedStyle(originalChildren[index]);
+              child.style.color = computed.color;
+              child.style.backgroundColor = computed.backgroundColor;
+              child.style.borderColor = computed.borderColor;
+
+              if (child.tagName === 'svg' || child.tagName === 'SVG') {
+                child.style.fill = computed.fill !== 'rgb(0, 0, 0)' ? computed.fill : 'currentColor';
+                child.style.stroke = computed.stroke;
+              }
+            }
+          });
+        };
+        preserveStyles(ghost, element);
+      }
+
+      document.body.appendChild(ghost);
+      this.columnDragGhost = ghost;
+
+      // Visual feedback
+      element.classList.add('dragging');
+    }
+  }
+
+  // Called via svelte:document onmousemove when isDragging && dragType === 'column'
+  handleColumnDragMove = (event) => {
+    if (!this.columnDragGhost || typeof window === 'undefined') return;
+
     if (this.dragAnimationFrame) {
       cancelAnimationFrame(this.dragAnimationFrame);
     }
+
+    this.dragAnimationFrame = requestAnimationFrame(() => {
+      if (!this.columnDragGhost) return;
+
+      const x = event.clientX - this.columnDragOffset.x;
+      const y = event.clientY - this.columnDragOffset.y;
+      this.columnDragGhost.style.transform = `translate(${x}px, ${y}px)`;
+
+      // Find column being hovered
+      if (typeof document !== 'undefined') {
+        const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+        if (elementBelow) {
+          const columnEl = elementBelow.closest('.pm-column');
+          if (columnEl) {
+            const columnId = columnEl.dataset.columnId;
+            if (columnId && columnId !== this.draggedColumn) {
+              this.dragOverColumnId = columnId;
+            }
+          } else {
+            this.dragOverColumnId = null;
+          }
+        }
+      }
+    });
+  };
+
+  // Called via svelte:document onmouseup when isDragging && dragType === 'column'
+  handleColumnDragEnd = (event) => {
+    if (this.dragType !== 'column') return;
+
+    // Get target before cleanup
+    const targetColumnId = this.dragOverColumnId;
+    const draggedColumnId = this.draggedColumn;
+
+    // Cancel animations
+    if (this.dragAnimationFrame) {
+      cancelAnimationFrame(this.dragAnimationFrame);
+      this.dragAnimationFrame = null;
+    }
+
+    // Fade out ghost
+    if (this.columnDragGhost) {
+      this.columnDragGhost.style.opacity = '0';
+      this.columnDragGhost.style.transition = 'opacity 0.15s ease-out';
+    }
+
+    // Remove dragging class (browser-only)
+    if (typeof document !== 'undefined') {
+      const draggedEl = document.querySelector('.pm-column.dragging');
+      if (draggedEl) {
+        draggedEl.classList.remove('dragging');
+      }
+    }
+
+    // Handle the reorder
+    if (targetColumnId && draggedColumnId && targetColumnId !== draggedColumnId) {
+      const fromIndex = this.columns.findIndex((c) => c.id === draggedColumnId);
+      const toIndex = this.columns.findIndex((c) => c.id === targetColumnId);
+
+      if (fromIndex !== -1 && toIndex !== -1) {
+        this.reorderColumns(fromIndex, toIndex);
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Column Reordered',
+            message: 'Column position updated.',
+            type: 'success',
+            duration: 2000
+          });
+        }
+      }
+    }
+
+    // Cleanup ghost after animation
+    setTimeout(() => {
+      if (this.columnDragGhost?.parentNode) {
+        this.columnDragGhost.remove();
+        this.columnDragGhost = null;
+      }
+    }, 150);
+
+    // Clear states
+    this.isDragging = false;
+    this.dragType = null;
+    this.draggedColumn = null;
+    this.dragOverColumnId = null;
+  };
+
+  // Cleanup method - called when component is destroyed
+  cleanup() {
+    // Cancel any pending animation frames
+    if (this.dragAnimationFrame) {
+      cancelAnimationFrame(this.dragAnimationFrame);
+      this.dragAnimationFrame = null;
+    }
+
+    // Clear any pending timeouts
     if (this.hoverCheckThrottle) {
       clearTimeout(this.hoverCheckThrottle);
+      this.hoverCheckThrottle = null;
     }
-    document.removeEventListener('mousemove', this.handleDragMove);
-    document.removeEventListener('mouseup', this.handleDragEnd);
+
+    // Immediately remove ghost elements (don't wait for 150ms timeout)
+    if (this.customDragGhost?.parentNode) {
+      this.customDragGhost.remove();
+      this.customDragGhost = null;
+    }
+    if (this.columnDragGhost?.parentNode) {
+      this.columnDragGhost.remove();
+      this.columnDragGhost = null;
+    }
+
+    // Clear all drag states
+    this.isDragging = false;
+    this.dragType = null;
+    this.draggedIssue = null;
+    this.draggedColumn = null;
+    this.hoveredColumn = null;
+    this.dragOverColumnId = null;
   }
 }
 

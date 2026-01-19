@@ -1,5 +1,5 @@
 <script>
-  import {getContext} from 'svelte';
+  import {getContext, onMount} from 'svelte';
   import {goto} from '$app/navigation';
   import {PageHeader} from '$components';
   import {
@@ -17,8 +17,21 @@
 
   let {data} = $props();
 
-  const supabase = getContext('supabase');
+  const supabaseHolder = getContext('supabase');
   const toastState = getContext('toastState');
+
+  // Track supabase client
+  let supabase = $state(null);
+
+  onMount(() => {
+    const checkSupabase = setInterval(() => {
+      if (supabaseHolder?.client) {
+        supabase = supabaseHolder.client;
+        clearInterval(checkSupabase);
+      }
+    }, 50);
+    return () => clearInterval(checkSupabase);
+  });
 
   let approval = $state(data.approval);
   let loading = $state(false);

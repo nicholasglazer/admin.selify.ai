@@ -71,14 +71,14 @@
 
   let issueType = $state(issue.issue_type || 'task');
 
-  // Status options (columns)
-  const statuses = pmState.columns.map((c) => ({
+  // Status options (columns) - with null safety for SSR
+  const statuses = (pmState?.columns ?? []).map((c) => ({
     value: c.id,
     label: c.name
   }));
 
-  // Team members for assignee dropdown
-  let teamMembers = $derived(pmState.teamMembers || []);
+  // Team members for assignee dropdown (with null safety)
+  let teamMembers = $derived(pmState?.teamMembers ?? []);
 
   // Format date
   function formatDate(dateStr) {
@@ -118,7 +118,7 @@
     isSaving = true;
 
     try {
-      await pmState.updateIssue(issue.id, {
+      await pmState?.updateIssue?.(issue.id, {
         title,
         description,
         priority,
@@ -151,7 +151,7 @@
   // Delete issue
   async function handleDelete() {
     if (confirm('Are you sure you want to delete this task?')) {
-      await pmState.deleteIssue(issue.id);
+      await pmState?.deleteIssue?.(issue.id);
       onClose();
     }
   }

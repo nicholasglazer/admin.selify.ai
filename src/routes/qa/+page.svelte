@@ -1,8 +1,8 @@
 <script>
-  import {setContext, getContext, onDestroy} from 'svelte';
+  import {setContext, getContext, onMount, onDestroy} from 'svelte';
   import {PageHeader} from '$components';
   import {Badge} from '@miozu/jera';
-  import {getQAState} from '$lib/reactiveStates';
+  import {getQAState, resetQAState} from '$lib/reactiveStates';
   import QADashboard from './QADashboard.svelte';
   import QASpecList from './QASpecList.svelte';
   import QARunList from './QARunList.svelte';
@@ -14,7 +14,7 @@
   let {data} = $props();
 
   const toastState = getContext('toastState');
-  const supabase = getContext('supabase');
+  const supabaseHolder = getContext('supabase');
 
   // Initialize QA state
   const qaState = getQAState({
@@ -22,11 +22,22 @@
     runs: data.runs,
     dashboardSummary: data.dashboardSummary,
     showToast: (msg) => toastState?.show(msg),
-    supabase,
+    supabase: null,
     apiBaseUrl: data.apiBaseUrl
   });
 
   setContext('qaState', qaState);
+
+  // Set supabase client when it becomes available
+  onMount(() => {
+    const checkSupabase = setInterval(() => {
+      if (supabaseHolder?.client) {
+        qaState.supabase = supabaseHolder.client;
+        clearInterval(checkSupabase);
+      }
+    }, 50);
+    return () => clearInterval(checkSupabase);
+  });
 
   // Derived values
   let viewMode = $derived(qaState.viewMode);
@@ -53,8 +64,9 @@
     qaState.startRun({environment: 'staging'});
   }
 
+  // Cleanup on destroy - reset singleton to prevent memory leaks
   onDestroy(() => {
-    qaState.cleanup();
+    resetQAState();
   });
 </script>
 
@@ -158,7 +170,7 @@
   @reference '$theme';
 
   .qa-page {
-    @apply flex flex-col h-full;
+    @apply flex flex-col h-full w-full;
   }
 
   .header-stats {
@@ -202,7 +214,7 @@
   }
 
   .view-tabs {
-    @apply flex gap-1 px-6 py-3 border-b border-base02;
+    @apply flex gap-1 py-3 border-b border-base02;
     @apply bg-base01/50;
   }
 
@@ -217,6 +229,6 @@
   }
 
   .qa-content {
-    @apply flex-1 overflow-auto p-6;
+    @apply flex-1 overflow-auto;
   }
 </style>

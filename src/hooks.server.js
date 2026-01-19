@@ -49,35 +49,53 @@ export const handle = async ({event, resolve}) => {
   event.locals.apiBaseUrl = env.API_BASE_URL || publicEnv.PUBLIC_SUPABASE_URL;
   event.locals.supabaseAnonKey = publicEnv.PUBLIC_SUPABASE_ANON_KEY;
 
-  // Create Supabase client with SSO cookie configuration
+  // Create Supabase client with READ-ONLY cookie configuration
+  // CRITICAL: Admin must NEVER write/clear cookies on .selify.ai domain
+  // Only dash.selify.ai should manage auth cookies to prevent SSO invalidation
   try {
     event.locals.supabase = createServerClient(publicEnv.PUBLIC_SUPABASE_URL, publicEnv.PUBLIC_SUPABASE_ANON_KEY, {
       cookies: {
-        getAll: () => event.cookies.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({name, value, options}) => {
-            // CRITICAL: Do NOT clear cookies on .selify.ai domain from admin
-            // This prevents admin from invalidating dash sessions when token refresh fails
-            if (!value || value === '' || options?.maxAge === 0) {
-              console.log(`[Admin] SKIPPING cookie clear for: ${name} (would invalidate SSO)`);
-              return; // Skip - don't propagate cookie clearing to shared domain
+        getAll: () => {
+          // Handle duplicate auth cookies by preferring the one with latest expiry
+          const allCookies = event.cookies.getAll();
+          const authCookies = new Map(); // name -> {cookie, expiresAt}
+          const otherCookies = [];
+
+          for (const cookie of allCookies) {
+            if (cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')) {
+              // Parse the token to get expiry
+              let expiresAt = 0;
+              try {
+                if (cookie.value.startsWith('base64-')) {
+                  const jsonStr = Buffer.from(cookie.value.slice(7), 'base64').toString('utf-8');
+                  const parsed = JSON.parse(jsonStr);
+                  expiresAt = parsed.expires_at || 0;
+                }
+              } catch {
+                // If parsing fails, use 0 (will be replaced by any valid token)
+              }
+
+              const existing = authCookies.get(cookie.name);
+              if (!existing || expiresAt > existing.expiresAt) {
+                authCookies.set(cookie.name, {cookie, expiresAt});
+              }
+            } else {
+              otherCookies.push(cookie);
             }
+          }
 
-            // Only SET cookies with actual values
-            const cookieOptions = {
-              ...options,
-              path: '/',
-              domain: '.selify.ai', // Share session across *.selify.ai
-              sameSite: 'lax',
-              secure: true
-            };
-
-            if (name.includes('sb-')) {
-              console.log(`[Admin] Setting cookie: ${name.substring(0, 20)}... domain=${cookieOptions.domain}`);
-            }
-
-            event.cookies.set(name, value, cookieOptions);
-          });
+          // Return other cookies + best auth cookie for each name
+          const result = [...otherCookies];
+          for (const {cookie} of authCookies.values()) {
+            result.push(cookie);
+          }
+          return result;
+        },
+        setAll: () => {
+          // INTENTIONALLY EMPTY - Admin is READ-ONLY for cookies
+          // dash.selify.ai is the auth source and manages all cookie writes
+          // If we write here, we risk invalidating the user's session everywhere
+          console.log('[Admin] Cookie write requested but blocked (read-only mode)');
         }
       }
     });

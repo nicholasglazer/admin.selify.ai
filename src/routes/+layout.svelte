@@ -1,12 +1,14 @@
 <script>
   import '../app.css';
   import {setContext, onMount} from 'svelte';
+  import {browser} from '$app/environment';
   import {AdminSidebar, Toaster} from '$components';
   import {getThemeState, getAdminState, getToastState} from '$lib/reactiveStates';
 
   let {data, children} = $props();
 
   // Initialize reactive states from server data
+  // Theme is already applied via inline script in app.html - no onMount needed
   const themeState = getThemeState(data.theme);
   const adminState = getAdminState({
     teamMember: data.teamMember,
@@ -14,18 +16,21 @@
   });
   const toastState = getToastState();
 
+  // Supabase holder - reactive object that gets populated on mount
+  const supabaseHolder = {client: null};
+
+  onMount(async () => {
+    if (browser) {
+      const {getSupabaseClient} = await import('$lib/supabase.js');
+      supabaseHolder.client = getSupabaseClient();
+    }
+  });
+
   // Provide states via context for child components
   setContext('themeState', themeState);
   setContext('adminState', adminState);
   setContext('toastState', toastState);
-
-  // Provide supabase client for client-side operations
-  setContext('supabase', data.supabase);
-
-  // Apply theme on mount (client-side)
-  onMount(() => {
-    themeState.apply();
-  });
+  setContext('supabase', supabaseHolder);
 
   // Derived values
   let teamMember = $derived(data.teamMember);
@@ -52,6 +57,10 @@
 
   .admin-layout {
     @apply flex min-h-screen bg-base00;
+  }
+
+  /* Only enable transitions after initial paint to prevent FOUC */
+  :global(:root.transitions-enabled) .admin-layout {
     @apply transition-colors duration-200;
   }
 
@@ -60,6 +69,6 @@
   }
 
   .content-container {
-    @apply flex-1 grid p-6 w-full;
+    @apply flex-1 p-5 w-full;
   }
 </style>

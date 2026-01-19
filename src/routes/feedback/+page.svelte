@@ -1,11 +1,24 @@
 <script>
-  import {getContext} from 'svelte';
+  import {getContext, onMount} from 'svelte';
   import {PageHeader, Badge} from '$components';
 
   let {data} = $props();
 
   const toastState = getContext('toastState');
-  const supabase = getContext('supabase');
+  const supabaseHolder = getContext('supabase');
+
+  // Track supabase client
+  let supabase = $state(null);
+
+  onMount(() => {
+    const checkSupabase = setInterval(() => {
+      if (supabaseHolder?.client) {
+        supabase = supabaseHolder.client;
+        clearInterval(checkSupabase);
+      }
+    }, 50);
+    return () => clearInterval(checkSupabase);
+  });
 
   // State
   let feedback = $state(data.feedback);
@@ -260,7 +273,7 @@
   @reference '$theme';
 
   .feedback-page {
-    @apply flex flex-col h-full;
+    @apply flex flex-col h-full w-full;
   }
 
   .filter-tabs {

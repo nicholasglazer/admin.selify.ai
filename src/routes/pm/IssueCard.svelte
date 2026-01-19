@@ -1,5 +1,6 @@
 <script>
   import {getContext} from 'svelte';
+  import {Bot, MessageCircle} from '@lucide/svelte';
 
   let {issue} = $props();
 
@@ -16,8 +17,8 @@
   // Label colors (simple rotation)
   const labelColors = ['label-blue', 'label-purple', 'label-green', 'label-yellow', 'label-red'];
 
-  // Check if this card is being dragged
-  let isDragging = $derived(pmState.draggedIssue?.id === issue.id);
+  // Check if this card is being dragged (with null safety for SSR)
+  let isDragging = $derived(pmState?.draggedIssue?.id === issue.id);
 
   // Format date
   function formatDate(dateStr) {
@@ -35,14 +36,14 @@
   // Handle mouse down for drag
   function handleMouseDown(e) {
     if (e.button !== 0) return; // Only left click
-    pmState.startCustomDrag(e.currentTarget, issue, e);
+    pmState?.startCustomDrag?.(e.currentTarget, issue, e);
   }
 
   // Handle click for detail view
   function handleClick(e) {
     // Don't open detail if we were dragging
-    if (pmState.isDragging) return;
-    pmState.selectIssue(issue);
+    if (pmState?.isDragging) return;
+    pmState?.selectIssue?.(issue);
   }
 
   // Handle keyboard activation
@@ -90,24 +91,7 @@
         {#if issue.assignee}
           <div class="assignee" title={issue.assignee}>
             {#if issue.assignee === 'ai-agent'}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M12 8V4H8" />
-                <rect width="16" height="12" x="4" y="8" rx="2" />
-                <path d="M2 14h2" />
-                <path d="M20 14h2" />
-                <path d="M15 13v2" />
-                <path d="M9 13v2" />
-              </svg>
+              <Bot size={12} />
               <span>AI</span>
             {:else}
               <span class="assignee-avatar">{issue.assignee.charAt(0).toUpperCase()}</span>
@@ -119,19 +103,7 @@
 
       {#if issue.source === 'feedback'}
         <div class="source-badge" title="From user feedback">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
+          <MessageCircle size={12} />
         </div>
       {/if}
     </div>
@@ -231,7 +203,7 @@
     @apply flex items-center gap-1;
   }
 
-  .assignee svg {
+  .assignee :global(svg) {
     @apply text-base0E;
   }
 
