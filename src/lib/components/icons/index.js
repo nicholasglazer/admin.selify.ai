@@ -44,6 +44,9 @@ export {default as Forward} from './Forward.svelte';
 export {default as MoreHorizontal} from './MoreHorizontal.svelte';
 export {default as Download} from './Download.svelte';
 
+// Temporal Dashboard Icons
+export {default as Activity} from './Activity.svelte';
+
 // Approval System Icons
 export {default as Clock} from './Clock.svelte';
 export {default as TriangleAlert} from './TriangleAlert.svelte';

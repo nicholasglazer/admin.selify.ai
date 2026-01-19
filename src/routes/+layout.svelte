@@ -1,9 +1,9 @@
 <script>
   import '../app.css';
-  import {setContext, onMount} from 'svelte';
+  import {setContext, onMount, onDestroy} from 'svelte';
   import {browser} from '$app/environment';
-  import {AdminSidebar, Toaster} from '$components';
-  import {getThemeState, getAdminState, getToastState} from '$lib/reactiveStates';
+  import {AdminSidebar, Toaster, ActivityTracker} from '$components';
+  import {getThemeState, getAdminState, getToastState, getTemporalState, resetTemporalState} from '$lib/reactiveStates';
 
   let {data, children} = $props();
 
@@ -16,6 +16,12 @@
   });
   const toastState = getToastState();
 
+  // Initialize temporal state for ActivityTracker (global workflow monitoring)
+  const temporalState = getTemporalState({
+    apiBaseUrl: data.apiBaseUrl,
+    showToast: (msg) => toastState?.show(msg)
+  });
+
   // Supabase holder - reactive object that gets populated on mount
   const supabaseHolder = {client: null};
 
@@ -23,13 +29,22 @@
     if (browser) {
       const {getSupabaseClient} = await import('$lib/supabase.js');
       supabaseHolder.client = getSupabaseClient();
+
+      // Fetch initial active processes for the tracker
+      temporalState.fetchActiveProcesses();
     }
+  });
+
+  onDestroy(() => {
+    // Clean up temporal SSE connections
+    temporalState?.cleanup();
   });
 
   // Provide states via context for child components
   setContext('themeState', themeState);
   setContext('adminState', adminState);
   setContext('toastState', toastState);
+  setContext('temporalState', temporalState);
   setContext('supabase', supabaseHolder);
 
   // Derived values
@@ -51,6 +66,9 @@
 
 <!-- Toast notifications -->
 <Toaster position="bottom-right" />
+
+<!-- Activity tracker for active workflows -->
+<ActivityTracker />
 
 <style lang="postcss">
   @reference '$theme';

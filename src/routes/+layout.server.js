@@ -1,8 +1,10 @@
 import {error} from '@sveltejs/kit';
+import {env} from '$env/dynamic/private';
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async ({locals, cookies}) => {
   const {session, user, supabase} = locals;
+  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
 
   // Get theme from cookie (set by inline script in app.html)
   const theme = cookies.get('admin-theme') || 'miozu-dark';
@@ -13,7 +15,8 @@ export const load = async ({locals, cookies}) => {
       user: null,
       teamMember: null,
       capabilities: [],
-      theme
+      theme,
+      apiBaseUrl
     };
   }
 
@@ -76,7 +79,8 @@ export const load = async ({locals, cookies}) => {
       user,
       teamMember,
       capabilities: capabilities || [],
-      theme
+      theme,
+      apiBaseUrl
     };
   } catch (e) {
     // Re-throw SvelteKit errors (like our 403s)

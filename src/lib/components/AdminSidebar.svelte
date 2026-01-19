@@ -23,7 +23,8 @@
     TestTube,
     Database,
     CheckCircle,
-    Mail
+    Mail,
+    Activity
   } from './icons';
 
   let {teamMember, capabilities} = $props();
@@ -42,6 +43,7 @@
       {label: 'Dashboard', href: '/', icon: Home, show: true},
       {label: 'PM Board', href: '/pm', icon: Kanban, show: hasCap('ops.tasks.view')},
       {label: 'QA', href: '/qa', icon: TestTube, show: hasCap('ops.qa.view')},
+      {label: 'Temporal', href: '/temporal', icon: Activity, show: hasCap('ops.tasks.view') || hasCap('ops.temporal.view')},
       {label: 'Approvals', href: '/approvals', icon: CheckCircle, show: hasCap('approvals.view') || hasCap('ops.approvals.view')},
       {label: 'Feedback', href: '/feedback', icon: MessageSquare, show: hasCap('ops.feedback.view')},
       {label: 'Webmail', href: '/webmail', icon: Mail, show: true},
