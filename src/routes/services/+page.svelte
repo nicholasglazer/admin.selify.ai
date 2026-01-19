@@ -59,41 +59,39 @@
   <title>Ops Hub | Selify Admin</title>
 </svelte:head>
 
-<div class="ops">
+<div class="page">
   <!-- Header -->
-  <header class="header">
-    <div>
-      <h1>Operations</h1>
-      <div class="status-line">
-        <span class="status-dot" class:ok={allHealthy} class:warn={!allHealthy}></span>
-        <span class="status-text">
-          {#if allHealthy}All systems operational{:else}{healthStats.healthy}/{healthStats.total} healthy{/if}
-        </span>
-        {#if healthStats.uptime}
-          <span class="status-sep">·</span>
-          <span class="status-uptime">{healthStats.uptime}% uptime</span>
-        {/if}
-      </div>
+  <header class="page-header">
+    <h1 class="page-title">Operations</h1>
+    <div class="status-line">
+      <span class="status-dot" class:status-dot-ok={allHealthy} class:status-dot-warn={!allHealthy}></span>
+      <span class="status-text">
+        {#if allHealthy}All systems operational{:else}{healthStats.healthy}/{healthStats.total} healthy{/if}
+      </span>
+      {#if healthStats.uptime}
+        <span class="status-sep">·</span>
+        <span class="status-uptime">{healthStats.uptime}% uptime</span>
+      {/if}
     </div>
   </header>
 
   <!-- Metric Strip -->
-  <div class="metric-strip">
+  <div class="metric-strip-bordered">
     <div class="metric">
-      <span class="metric-val">{healthStats.healthy}<span class="metric-dim">/{healthStats.total}</span></span>
-      <span class="metric-lbl">Services</span>
+      <span class="metric-value">{healthStats.healthy}<span class="metric-dim">/{healthStats.total}</span></span>
+      <span class="metric-label">Services</span>
     </div>
     <div class="metric">
-      <span class="metric-val">{dbSummary.cache_hit_ratio || 0}<span class="metric-dim">%</span></span>
-      <span class="metric-lbl">Cache</span>
+      <span class="metric-value">{dbSummary.cache_hit_ratio || 0}<span class="metric-dim">%</span></span>
+      <span class="metric-label">Cache</span>
     </div>
     <div class="metric">
-      <span class="metric-val">{dbSummary.connections?.current || 0}<span class="metric-dim">/{dbSummary.connections?.max || 100}</span></span>
-      <span class="metric-lbl">Connections</span>
+      <span class="metric-value">{dbSummary.connections?.current || 0}<span class="metric-dim">/{dbSummary.connections?.max || 100}</span></span>
+      <span class="metric-label">Connections</span>
     </div>
-    <div class="metric" class:has-error={errorCount > 0}>
-      <span class="metric-val">{errorCount}</span>
-      <span class="metric-lbl">Errors</span>
+    <div class="metric" class:alert={errorCount > 0}>
+      <span class="metric-value">{errorCount}</span>
+      <span class="metric-label">Errors</span>
     </div>
   </div>
 
@@ -119,32 +117,32 @@
     {#if activeTab === 'overview'}
       <div class="overview" role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
         <!-- Quick numbers -->
-        <div class="num-row">
-          <div class="num-item">
-            <span class="num-val">{dbSummary.database_size || '—'}</span>
-            <span class="num-lbl">Database</span>
+        <div class="metric-strip">
+          <div class="metric">
+            <span class="metric-value">{dbSummary.database_size || '—'}</span>
+            <span class="metric-label">Database</span>
           </div>
-          <div class="num-item">
-            <span class="num-val">{dbSummary.total_tables || 0}</span>
-            <span class="num-lbl">Tables</span>
+          <div class="metric">
+            <span class="metric-value">{dbSummary.total_tables || 0}</span>
+            <span class="metric-label">Tables</span>
           </div>
-          <div class="num-item">
-            <span class="num-val">{dbSummary.total_rls_policies || 0}</span>
-            <span class="num-lbl">Policies</span>
+          <div class="metric">
+            <span class="metric-value">{dbSummary.total_rls_policies || 0}</span>
+            <span class="metric-label">Policies</span>
           </div>
-          <div class="num-item">
-            <span class="num-val">{dbLockStats.total_locks || 0}</span>
-            <span class="num-lbl">Locks</span>
+          <div class="metric">
+            <span class="metric-value">{dbLockStats.total_locks || 0}</span>
+            <span class="metric-label">Locks</span>
           </div>
-          <div class="num-item" class:warn={dbLockStats.waiting > 0}>
-            <span class="num-val">{dbLockStats.waiting || 0}</span>
-            <span class="num-lbl">Waiting</span>
+          <div class="metric" class:alert={dbLockStats.waiting > 0}>
+            <span class="metric-value">{dbLockStats.waiting || 0}</span>
+            <span class="metric-label">Waiting</span>
           </div>
         </div>
 
         <!-- Services preview -->
         <section class="section">
-          <h2>Services</h2>
+          <h2 class="section-header">Services</h2>
           <div class="service-table">
             {#each services.slice(0, 8) as service}
               <div class="service-row">
@@ -164,7 +162,7 @@
 
         <!-- Connection states -->
         <section class="section">
-          <h2>Connections</h2>
+          <h2 class="section-header">Connections</h2>
           <div class="conn-row">
             {#each Object.entries(dbConnectionStates) as [state, count]}
               <div class="conn-item">
@@ -177,7 +175,7 @@
 
         <!-- Quick links -->
         <section class="section">
-          <h2>Navigate</h2>
+          <h2 class="section-header">Navigate</h2>
           <div class="link-row">
             <a href="/database" class="quick-link">Database Health →</a>
             <a href="/errors" class="quick-link">Error Tracking →</a>
@@ -191,17 +189,17 @@
       <div class="services-view" role="tabpanel" id="tabpanel-services" aria-labelledby="tab-services">
         <!-- Status counts -->
         <div class="status-counts">
-          <div class="count-item ok">
-            <span class="count-val">{statusCounts.healthy || 0}</span>
-            <span class="count-lbl">Healthy</span>
+          <div class="metric status-ok">
+            <span class="metric-value">{statusCounts.healthy || 0}</span>
+            <span class="metric-label">Healthy</span>
           </div>
-          <div class="count-item warn">
-            <span class="count-val">{statusCounts.degraded || 0}</span>
-            <span class="count-lbl">Degraded</span>
+          <div class="metric status-warn">
+            <span class="metric-value">{statusCounts.degraded || 0}</span>
+            <span class="metric-label">Degraded</span>
           </div>
-          <div class="count-item err">
-            <span class="count-val">{statusCounts.unhealthy || 0}</span>
-            <span class="count-lbl">Unhealthy</span>
+          <div class="metric status-err">
+            <span class="metric-value">{statusCounts.unhealthy || 0}</span>
+            <span class="metric-label">Unhealthy</span>
           </div>
         </div>
 
@@ -221,32 +219,32 @@
     {:else if activeTab === 'database'}
       <div class="db-view" role="tabpanel" id="tabpanel-database" aria-labelledby="tab-database">
         <div class="db-grid">
-          <div class="db-card">
-            <span class="db-val">{dbSummary.database_size || '—'}</span>
-            <span class="db-lbl">Size</span>
+          <div class="card flex flex-col">
+            <span class="metric-value">{dbSummary.database_size || '—'}</span>
+            <span class="metric-label">Size</span>
           </div>
-          <div class="db-card">
-            <span class="db-val">{dbSummary.cache_hit_ratio || 0}%</span>
-            <span class="db-lbl">Cache Hit</span>
-            <span class="db-tag" class:ok={dbSummary.cache_status === 'good'}>{dbSummary.cache_status || 'unknown'}</span>
+          <div class="card flex flex-col">
+            <span class="metric-value">{dbSummary.cache_hit_ratio || 0}%</span>
+            <span class="metric-label">Cache Hit</span>
+            <span class="tag mt-2" class:tag-ok={dbSummary.cache_status === 'good'}>{dbSummary.cache_status || 'unknown'}</span>
           </div>
-          <div class="db-card">
-            <span class="db-val">{dbSummary.connections?.current || 0}/{dbSummary.connections?.max || 100}</span>
-            <span class="db-lbl">Connections</span>
-            <div class="db-bar">
-              <div class="db-bar-fill" style="width: {dbSummary.connections?.usage_percent || 0}%"></div>
+          <div class="card flex flex-col">
+            <span class="metric-value">{dbSummary.connections?.current || 0}/{dbSummary.connections?.max || 100}</span>
+            <span class="metric-label">Connections</span>
+            <div class="metric-bar">
+              <div class="metric-bar-fill bg-base0D" style="width: {dbSummary.connections?.usage_percent || 0}%"></div>
             </div>
           </div>
-          <div class="db-card">
-            <span class="db-val">{dbLockStats.waiting || 0}</span>
-            <span class="db-lbl">Waiting Locks</span>
-            <span class="db-tag" class:ok={dbLockStats.waiting === 0} class:warn={dbLockStats.waiting > 0}>
+          <div class="card flex flex-col">
+            <span class="metric-value">{dbLockStats.waiting || 0}</span>
+            <span class="metric-label">Waiting Locks</span>
+            <span class="tag mt-2" class:tag-ok={dbLockStats.waiting === 0} class:tag-warn={dbLockStats.waiting > 0}>
               {dbLockStats.waiting > 0 ? 'contention' : 'clear'}
             </span>
           </div>
         </div>
 
-        <a href="/database" class="db-link">
+        <a href="/database" class="db-link card-interactive">
           <span>Full Database Dashboard</span>
           <span>→</span>
         </a>
@@ -254,31 +252,31 @@
 
     {:else if activeTab === 'external'}
       <div class="ext-view" role="tabpanel" id="tabpanel-external" aria-labelledby="tab-external">
-        <p class="ext-intro">External monitoring for deep analysis.</p>
+        <p class="page-subtitle">External monitoring for deep analysis.</p>
 
         <div class="ext-grid">
-          <a href="https://metrics.selify.ai" target="_blank" rel="noopener" class="ext-card">
+          <a href="https://metrics.selify.ai" target="_blank" rel="noopener" class="card card-interactive ext-card">
             <div class="ext-icon">S</div>
             <div class="ext-info">
               <span class="ext-name">SigNoz</span>
               <span class="ext-desc">APM, traces, logs</span>
             </div>
           </a>
-          <a href="https://temporal.selify.ai" target="_blank" rel="noopener" class="ext-card">
+          <a href="https://temporal.selify.ai" target="_blank" rel="noopener" class="card card-interactive ext-card">
             <div class="ext-icon">T</div>
             <div class="ext-info">
               <span class="ext-name">Temporal</span>
               <span class="ext-desc">Workflows</span>
             </div>
           </a>
-          <a href="https://modal.com/apps" target="_blank" rel="noopener" class="ext-card">
+          <a href="https://modal.com/apps" target="_blank" rel="noopener" class="card card-interactive ext-card">
             <div class="ext-icon">M</div>
             <div class="ext-info">
               <span class="ext-name">Modal</span>
               <span class="ext-desc">GPU inference</span>
             </div>
           </a>
-          <a href="https://dash.cloudflare.com" target="_blank" rel="noopener" class="ext-card">
+          <a href="https://dash.cloudflare.com" target="_blank" rel="noopener" class="card card-interactive ext-card">
             <div class="ext-icon">C</div>
             <div class="ext-info">
               <span class="ext-name">Cloudflare</span>
@@ -288,7 +286,7 @@
         </div>
 
         <section class="section">
-          <h2>Telemetry Coverage</h2>
+          <h2 class="section-header">Telemetry Coverage</h2>
           <div class="telem-list">
             <div class="telem-group">
               <span class="telem-label">Node.js</span>
@@ -312,30 +310,10 @@
 <style lang="postcss">
   @reference '$theme';
 
-  .ops {
-    @apply max-w-5xl mx-auto;
-  }
-
-  /* Header */
-  .header {
-    @apply mb-8;
-  }
-
-  .header h1 {
-    @apply text-2xl font-semibold text-base06 m-0;
-    letter-spacing: -0.02em;
-  }
-
+  /* Page Header Status Line */
   .status-line {
     @apply flex items-center gap-2 mt-2;
   }
-
-  .status-dot {
-    @apply w-2 h-2 rounded-full bg-base04;
-  }
-
-  .status-dot.ok { @apply bg-base0B; }
-  .status-dot.warn { @apply bg-base09; }
 
   .status-text {
     @apply text-sm text-base05;
@@ -349,90 +327,21 @@
     @apply text-sm text-base04;
   }
 
-  /* Metric Strip */
-  .metric-strip {
-    @apply flex gap-8 mb-8 pb-6 border-b border-base02;
-  }
-
-  .metric {
-    @apply flex flex-col;
-  }
-
-  .metric.has-error .metric-val {
-    @apply text-base08;
-  }
-
-  .metric-val {
-    @apply text-2xl font-semibold text-base06;
-    letter-spacing: -0.02em;
-  }
-
-  .metric-dim {
-    @apply text-base04 text-lg font-normal;
-  }
-
-  .metric-lbl {
-    @apply text-xs text-base04 mt-0.5;
-  }
-
-  /* Tab Navigation */
-  .tab-nav {
-    @apply flex gap-1 mb-6;
-  }
-
-  .tab-btn {
-    @apply px-4 py-2 text-sm font-medium;
-    @apply bg-transparent border-none rounded-lg cursor-pointer;
-    @apply text-base04 transition-colors;
-  }
-
-  .tab-btn:hover {
-    @apply text-base05 bg-base01;
-  }
-
-  .tab-btn.active {
-    @apply text-base06 bg-base02;
-  }
-
   /* Content */
   .content {
     @apply min-h-[400px];
   }
 
-  /* Overview */
+  /* Overview tab */
   .overview {
     @apply space-y-8;
-  }
-
-  .num-row {
-    @apply flex gap-8;
-  }
-
-  .num-item {
-    @apply flex flex-col;
-  }
-
-  .num-item.warn .num-val {
-    @apply text-base09;
-  }
-
-  .num-val {
-    @apply text-xl font-semibold text-base05;
-  }
-
-  .num-lbl {
-    @apply text-xs text-base04 mt-0.5;
   }
 
   .section {
     @apply space-y-3;
   }
 
-  .section h2 {
-    @apply text-xs font-medium text-base04 uppercase tracking-wider m-0;
-  }
-
-  /* Service table */
+  /* Services mini table */
   .service-table {
     @apply space-y-1;
   }
@@ -468,7 +377,7 @@
 
   /* Connection row */
   .conn-row {
-    @apply flex gap-4;
+    @apply flex flex-wrap gap-3;
   }
 
   .conn-item {
@@ -486,7 +395,7 @@
 
   /* Quick links */
   .link-row {
-    @apply flex gap-3;
+    @apply flex flex-wrap gap-3;
   }
 
   .quick-link {
@@ -499,71 +408,30 @@
     @apply text-base05 bg-base02;
   }
 
-  /* Services view */
+  /* Services tab - status counts with colors */
   .services-view {
     @apply space-y-6;
   }
 
   .status-counts {
-    @apply flex gap-6;
+    @apply flex gap-6 mb-6 pb-6 border-b border-base02;
   }
 
-  .count-item {
-    @apply flex flex-col;
-  }
-
-  .count-val {
-    @apply text-2xl font-semibold text-base05;
-  }
-
-  .count-item.ok .count-val { @apply text-base0B; }
-  .count-item.warn .count-val { @apply text-base09; }
-  .count-item.err .count-val { @apply text-base08; }
-
-  .count-lbl {
-    @apply text-xs text-base04 mt-0.5;
-  }
+  .status-ok .metric-value { @apply text-base0B; }
+  .status-warn .metric-value { @apply text-base09; }
+  .status-err .metric-value { @apply text-base08; }
 
   .services-list {
     @apply space-y-2;
   }
 
-  /* Database view */
+  /* Database tab */
   .db-view {
     @apply space-y-6;
   }
 
   .db-grid {
     @apply grid grid-cols-2 lg:grid-cols-4 gap-4;
-  }
-
-  .db-card {
-    @apply flex flex-col p-4 rounded-xl;
-    @apply bg-base01 border border-base02;
-  }
-
-  .db-val {
-    @apply text-2xl font-semibold text-base06;
-  }
-
-  .db-lbl {
-    @apply text-xs text-base04 mt-1;
-  }
-
-  .db-tag {
-    @apply text-[10px] uppercase tracking-wider mt-2;
-    @apply text-base04;
-  }
-
-  .db-tag.ok { @apply text-base0B; }
-  .db-tag.warn { @apply text-base09; }
-
-  .db-bar {
-    @apply h-1 bg-base02 rounded-full mt-3 overflow-hidden;
-  }
-
-  .db-bar-fill {
-    @apply h-full bg-base0D rounded-full;
   }
 
   .db-link {
@@ -578,13 +446,9 @@
     @apply border-base03 text-base06;
   }
 
-  /* External view */
+  /* External tab */
   .ext-view {
     @apply space-y-6;
-  }
-
-  .ext-intro {
-    @apply text-sm text-base04 m-0;
   }
 
   .ext-grid {
@@ -592,17 +456,11 @@
   }
 
   .ext-card {
-    @apply flex items-center gap-3 p-3;
-    @apply bg-base01 border border-base02 rounded-lg;
-    @apply no-underline transition-all;
-  }
-
-  .ext-card:hover {
-    @apply border-base03;
+    @apply flex items-center gap-3;
   }
 
   .ext-icon {
-    @apply w-9 h-9 rounded-lg;
+    @apply w-9 h-9 rounded-lg flex-shrink-0;
     @apply flex items-center justify-center;
     @apply bg-base02 text-base05 font-semibold text-sm;
   }
@@ -639,11 +497,7 @@
 
   /* Responsive */
   @media (max-width: 768px) {
-    .metric-strip {
-      @apply flex-wrap gap-4;
-    }
-
-    .num-row {
+    .status-counts {
       @apply flex-wrap gap-4;
     }
 

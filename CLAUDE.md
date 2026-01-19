@@ -1,6 +1,6 @@
 # admin.selify.ai - Internal Operations Dashboard
 
-**Last Updated:** January 17, 2026
+**Last Updated:** January 19, 2026
 **Purpose:** Internal team management, workspace admin, AI-first task board, and ops monitoring
 
 ---
@@ -163,6 +163,37 @@ Uses the same Base16 dark theme as dash.selify.ai:
 - Error: `--color-base08` (red)
 - Background: `--color-base00` (dark gray)
 
+### Icons - Lucide (REQUIRED)
+
+**Always use Lucide icons instead of inline SVGs.** Import only the icons you need for tree-shaking:
+
+```svelte
+<script>
+  // CORRECT - Tree-shaking friendly imports
+  import { Search, Plus, Check, X, GripVertical } from '@lucide/svelte';
+</script>
+
+<Search size={16} />
+<Plus size={14} class="text-base04" />
+<GripVertical size={14} strokeWidth={2} />
+```
+
+**Common icons for admin:**
+| Usage | Icon |
+|-------|------|
+| Search | `Search` |
+| Add/Create | `Plus` |
+| Close/Cancel | `X` |
+| Confirm/Done | `Check` |
+| Edit | `Pencil` |
+| Delete | `Trash2` |
+| Drag handle | `GripVertical` |
+| More options | `MoreVertical` |
+| Settings | `Settings` |
+| Filter | `Filter` |
+
+**NEVER use inline SVGs for standard icons. Always import from @lucide/svelte.**
+
 ### Semantic Color Tokens
 
 The theme includes semantic tokens compatible with `@miozu/jera`:
@@ -198,6 +229,117 @@ jera components work out-of-the-box with this codebase:
 **When to use jera vs local components:**
 - Use jera for: Generic UI (Modal, Toast, Tabs, forms)
 - Use local for: Admin-specific UI (Sidebar, ServiceHealthCard)
+
+---
+
+## CSS & Layout Architecture (2026 Best Practices)
+
+### Layout System
+
+**Root layout provides 20px (p-5) padding.** All pages use 100% width with no centering.
+
+```
++layout.svelte (.content-container)
+├── p-5 (20px padding)
+├── w-full (100% width)
+└── Child pages fill the space
+```
+
+### Reusable Layout Utilities
+
+Imported from `@miozu/jera/layouts` in `app.css`. Uses CSS `@layer jera-layouts` for proper specificity.
+These utilities are **shared across all miozu apps** (admin, dash) for consistency.
+
+| Class | Usage |
+|-------|-------|
+| `.page` | Standard page container (`w-full h-full`) |
+| `.page-flex` | Flex column page (`flex flex-col w-full h-full`) |
+| `.page-header` | Page header wrapper (`mb-8`) |
+| `.page-title` | Page title (`text-2xl font-semibold`) |
+| `.section-header` | Section h2 (`text-xs uppercase`) |
+| `.metric-strip` | Stats row with background |
+| `.metric-strip-bordered` | Stats row with bottom border |
+| `.metric` / `.metric-value` / `.metric-label` | Metric cards |
+| `.card` / `.card-hover` / `.card-interactive` | Surface cards |
+| `.data-table` | Standard table styles |
+| `.tag` / `.tag-ok` / `.tag-warn` / `.tag-err` | Status tags |
+| `.tab-nav` / `.tab-btn` | Tab navigation |
+| `.btn-primary` / `.btn-secondary` / `.btn-ghost` | Button variants |
+| `.status-dot` / `.status-dot-ok` / `.status-dot-warn` | Status indicators |
+
+**Source:** `@miozu/jera/src/layouts/index.css` - edit there to update all apps.
+
+### Page Template
+
+All pages should follow this structure:
+
+```svelte
+<div class="page">  <!-- or .page-flex for flex layout -->
+  <header class="page-header">
+    <h1 class="page-title">Page Title</h1>
+    <p class="page-subtitle">Description</p>
+  </header>
+
+  <div class="metric-strip">
+    <div class="metric">
+      <span class="metric-value">42</span>
+      <span class="metric-label">Count</span>
+    </div>
+  </div>
+
+  <section>
+    <h2 class="section-header">Section Title</h2>
+    <!-- content -->
+  </section>
+</div>
+
+<style lang="postcss">
+  @reference '$theme';
+
+  /* Page-specific styles only */
+</style>
+```
+
+### CSS Best Practices
+
+1. **Use jera layout classes first** - Check `@miozu/jera/layouts` before writing custom styles
+2. **Page-specific only** - Component styles should only contain truly unique patterns
+3. **CSS Layers** - jera uses `@layer jera-layouts`, your styles naturally override
+4. **No max-width centering** - Pages use full width, root layout provides padding
+5. **Design tokens** - Use CSS variables from `theme.css` for colors
+
+### Anti-Patterns to Avoid
+
+```css
+/* DON'T: Add page-specific max-width/centering */
+.my-page {
+  @apply max-w-5xl mx-auto;  /* NO - violates layout consistency */
+}
+
+/* DON'T: Add extra padding (root layout already provides it) */
+.my-section {
+  @apply p-6;  /* NO - causes double padding */
+}
+
+/* DON'T: Duplicate common patterns */
+.my-header h1 {
+  @apply text-2xl font-semibold text-base06;  /* NO - use .page-title */
+}
+
+/* DO: Use reusable classes */
+<h1 class="page-title">Title</h1>
+```
+
+### Migrating Existing Pages
+
+When refactoring pages:
+
+1. Replace `max-w-5xl mx-auto` with `w-full`
+2. Remove extra `p-6` padding (root provides p-5)
+3. Use `.page-header`, `.page-title`, `.section-header` classes
+4. Use `.metric-strip` for stats rows
+5. Use `.data-table` for tables
+6. Use `.card` for card surfaces
 
 ## Deployment
 
