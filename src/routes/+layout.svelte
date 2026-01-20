@@ -23,12 +23,14 @@
   });
 
   // Supabase holder - reactive object that gets populated on mount
-  const supabaseHolder = {client: null};
+  const supabaseHolder = {client: null, internalClient: null};
 
   onMount(async () => {
     if (browser) {
-      const {getSupabaseClient} = await import('$lib/supabase.js');
+      const {getSupabaseClient, createInternalSchemaProxy} = await import('$lib/supabase.js');
       supabaseHolder.client = getSupabaseClient();
+      // Create internal schema proxy from the main client (shares session)
+      supabaseHolder.internalClient = createInternalSchemaProxy(supabaseHolder.client);
 
       // Fetch initial active processes for the tracker
       temporalState.fetchActiveProcesses();

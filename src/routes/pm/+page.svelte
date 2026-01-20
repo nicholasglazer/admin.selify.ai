@@ -32,6 +32,7 @@
   // Set supabase client when it becomes available
   onMount(() => {
     // Poll for supabase client (it's set async in layout)
+    // Pass the main client - PM state will call .schema('internal') on each request
     const checkSupabase = setInterval(() => {
       if (supabaseHolder?.client) {
         pmState.supabase = supabaseHolder.client;
