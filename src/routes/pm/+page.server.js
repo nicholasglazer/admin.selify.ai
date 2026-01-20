@@ -35,11 +35,33 @@ export const load = async ({locals, parent}) => {
         ai_analysis,
         ai_confidence,
         ai_automatable,
+        backlog_position,
         created_at,
         updated_at
       `)
       .is('deleted_at', null)
       .order('created_at', {ascending: false});
+
+    // Fetch hierarchy data (children count and parent info)
+    const {data: hierarchyData, error: hierarchyError} = await supabase
+      .schema('internal')
+      .rpc('get_tasks_with_hierarchy');
+
+    if (hierarchyError) {
+      console.error('[PM Board] Failed to load hierarchy data:', hierarchyError.message);
+    }
+
+    // Create lookup map for hierarchy info
+    const hierarchyMap = new Map();
+    if (hierarchyData) {
+      for (const h of hierarchyData) {
+        hierarchyMap.set(h.id, {
+          children_count: h.children_count || 0,
+          parent_title: h.parent_title || null,
+          parent_issue_number: h.parent_issue_number || null
+        });
+      }
+    }
 
     if (tasksError) {
       console.error('[PM Board] Failed to load tasks:', tasksError.message);
@@ -56,14 +78,18 @@ export const load = async ({locals, parent}) => {
       console.error('[PM Board] Failed to load team members:', teamError.message);
     }
 
-    // Map tasks to include task_number and assignee info
+    // Map tasks to include task_number, assignee info, and hierarchy data
     const issues = (tasks || []).map(task => {
       const assignee = teamMembers?.find(m => m.id === task.assignee_id);
+      const hierarchy = hierarchyMap.get(task.id) || {};
       return {
         ...task,
         task_number: task.issue_number,
         assignee: assignee?.display_name || assignee?.full_name || null,
-        assignee_avatar: assignee?.avatar_url || null
+        assignee_avatar: assignee?.avatar_url || null,
+        children_count: hierarchy.children_count || 0,
+        parent_title: hierarchy.parent_title || null,
+        parent_issue_number: hierarchy.parent_issue_number || null
       };
     });
 

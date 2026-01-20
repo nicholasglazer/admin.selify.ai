@@ -49,9 +49,25 @@
   let priority = $state(issue.priority);
   let status = $state(issue.status);
   let assigneeId = $state(issue.assignee_id || '');
+  let parentId = $state(issue.parent_id || '');
   let labels = $state([...(issue.labels || [])]);
   let newLabel = $state('');
   let isSaving = $state(false);
+
+  // Get all tasks for parent selector (exclude current task and its children)
+  let allTasks = $derived(pmState?.issues ?? []);
+  let potentialParents = $derived(
+    allTasks.filter(t =>
+      t.id !== issue.id &&
+      t.parent_id !== issue.id && // Exclude children of current task
+      t.status !== 'done' // Typically don't want to make subtasks of done tasks
+    )
+  );
+
+  // Get children of this task
+  let children = $derived(
+    allTasks.filter(t => t.parent_id === issue.id)
+  );
 
   // Priority options
   const priorities = [
@@ -113,6 +129,17 @@
     }
   }
 
+  // Create subtask
+  function handleCreateSubtask() {
+    // Close current modal and open creator with parent pre-filled
+    onClose();
+    pmState?.openManualCreator?.();
+    // Set the parent context in the creator state
+    if (pmState?.manualCreator) {
+      pmState.manualCreator.defaultParentId = issue.id;
+    }
+  }
+
   // Save changes
   async function handleSave() {
     isSaving = true;
@@ -125,6 +152,7 @@
         status,
         issue_type: issueType,
         assignee_id: assigneeId || null,
+        parent_id: parentId || null,
         labels
       });
 
@@ -247,6 +275,43 @@
             {/each}
           </select>
         </div>
+      </div>
+
+      <!-- Parent Task Selector -->
+      <div class="form-group">
+        <label>Parent Task</label>
+        <select bind:value={parentId}>
+          <option value="">None (top-level task)</option>
+          {#each potentialParents as task}
+            <option value={task.id}>#{task.task_number} - {task.title}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- Children / Subtasks -->
+      {#if children.length > 0}
+        <div class="form-group">
+          <label>Subtasks ({children.length})</label>
+          <div class="children-list">
+            {#each children as child}
+              <button
+                class="child-item"
+                onclick={() => pmState?.selectIssue?.(child)}
+              >
+                <span class="child-number">#{child.task_number}</span>
+                <span class="child-title">{child.title}</span>
+                <span class="child-status status-{child.status}">{child.status}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Create Subtask Button -->
+      <div class="form-group">
+        <button class="create-subtask-btn" onclick={handleCreateSubtask}>
+          + Create Subtask
+        </button>
       </div>
 
       <div class="form-group">
@@ -501,5 +566,45 @@
 
   .footer-actions {
     @apply flex items-center gap-2;
+  }
+
+  /* Children / Subtasks list */
+  .children-list {
+    @apply flex flex-col gap-1;
+  }
+
+  .child-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg;
+    @apply bg-base00 border border-border;
+    @apply text-left text-sm;
+    @apply hover:bg-base02 hover:border-base03;
+    @apply transition-colors cursor-pointer;
+  }
+
+  .child-number {
+    @apply font-mono text-xs text-base04;
+  }
+
+  .child-title {
+    @apply flex-1 truncate text-base05;
+  }
+
+  .child-status {
+    @apply text-xs px-2 py-0.5 rounded;
+    @apply font-medium;
+  }
+
+  .status-backlog { @apply bg-base03/20 text-base05; }
+  .status-ai_queue { @apply bg-base0E/15 text-base0E; }
+  .status-in_progress { @apply bg-base0D/15 text-base0D; }
+  .status-review { @apply bg-base0A/15 text-base0A; }
+  .status-done { @apply bg-base0B/15 text-base0B; }
+
+  .create-subtask-btn {
+    @apply w-full py-2 rounded-lg;
+    @apply text-sm font-medium text-base04;
+    @apply bg-base02 border border-dashed border-border;
+    @apply hover:text-base0D hover:border-base0D/50 hover:bg-base0D/5;
+    @apply transition-all cursor-pointer;
   }
 </style>

@@ -1,6 +1,6 @@
 <script>
   import {getContext} from 'svelte';
-  import {Bot, MessageCircle} from '@lucide/svelte';
+  import {Bot, MessageCircle, ListTodo, CornerDownRight, Zap, Loader2} from '@lucide/svelte';
 
   let {issue} = $props();
 
@@ -53,6 +53,20 @@
       handleClick(e);
     }
   }
+
+  // Handle AI processing
+  async function handleProcessWithAI(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    await pmState?.processWithAI?.(issue.id);
+  }
+
+  // Check if task is in AI queue and automatable
+  let showAIButton = $derived(
+    issue.status === 'ai_queue' && issue.ai_automatable && !issue.ai_processing
+  );
+
+  let isAIProcessing = $derived(issue.ai_processing);
 </script>
 
 <div
@@ -70,6 +84,14 @@
   <div class="priority-bar"></div>
 
   <div class="card-content">
+    <!-- Parent indicator -->
+    {#if issue.parent_id && issue.parent_title}
+      <div class="parent-indicator" title="Subtask of #{issue.parent_issue_number}">
+        <CornerDownRight size={12} />
+        <span class="parent-title">{issue.parent_title}</span>
+      </div>
+    {/if}
+
     <!-- Title -->
     <h4 class="issue-title">{issue.title}</h4>
 
@@ -82,6 +104,25 @@
         {#if issue.labels.length > 3}
           <span class="label label-more">+{issue.labels.length - 3}</span>
         {/if}
+      </div>
+    {/if}
+
+    <!-- AI Processing Button (for ai_queue tasks) -->
+    {#if showAIButton}
+      <button
+        class="ai-process-btn"
+        onclick={handleProcessWithAI}
+        title="Process with AI"
+      >
+        <Zap size={14} />
+        <span>Process with AI</span>
+      </button>
+    {/if}
+
+    {#if isAIProcessing}
+      <div class="ai-processing-indicator">
+        <Loader2 size={14} class="animate-spin" />
+        <span>AI Processing...</span>
       </div>
     {/if}
 
@@ -101,11 +142,26 @@
         <span class="date">{formatDate(issue.updated_at)}</span>
       </div>
 
-      {#if issue.source === 'feedback'}
-        <div class="source-badge" title="From user feedback">
-          <MessageCircle size={12} />
-        </div>
-      {/if}
+      <div class="badges">
+        {#if issue.ai_automatable}
+          <div class="ai-badge" title="AI automatable">
+            <Bot size={12} />
+          </div>
+        {/if}
+
+        {#if issue.children_count > 0}
+          <div class="subtask-badge" title="{issue.children_count} subtask{issue.children_count > 1 ? 's' : ''}">
+            <ListTodo size={12} />
+            <span>{issue.children_count}</span>
+          </div>
+        {/if}
+
+        {#if issue.source === 'feedback'}
+          <div class="source-badge" title="From user feedback">
+            <MessageCircle size={12} />
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 </div>
@@ -216,7 +272,59 @@
     @apply text-base04;
   }
 
+  .badges {
+    @apply flex items-center gap-2;
+  }
+
+  .subtask-badge {
+    @apply flex items-center gap-1 text-base0E;
+  }
+
+  .subtask-badge span {
+    @apply text-xs font-medium;
+  }
+
   .source-badge {
     @apply text-base04;
+  }
+
+  .parent-indicator {
+    @apply flex items-center gap-1 mb-1;
+    @apply text-xs text-base04;
+  }
+
+  .parent-indicator :global(svg) {
+    @apply text-base04;
+  }
+
+  .parent-title {
+    @apply truncate max-w-[180px];
+  }
+
+  /* AI Processing UI */
+  .ai-process-btn {
+    @apply flex items-center justify-center gap-1.5 w-full mt-2 py-1.5;
+    @apply text-xs font-medium;
+    @apply bg-base0E/10 text-base0E border border-base0E/30 rounded-md;
+    @apply hover:bg-base0E/20 hover:border-base0E/50;
+    @apply transition-all cursor-pointer;
+  }
+
+  .ai-process-btn :global(svg) {
+    @apply text-base0E;
+  }
+
+  .ai-processing-indicator {
+    @apply flex items-center justify-center gap-1.5 w-full mt-2 py-1.5;
+    @apply text-xs font-medium text-base0A;
+    @apply bg-base0A/10 border border-base0A/30 rounded-md;
+  }
+
+  .ai-processing-indicator :global(svg) {
+    @apply text-base0A;
+  }
+
+  .ai-badge {
+    @apply text-base0E;
   }
 </style>

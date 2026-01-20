@@ -138,13 +138,38 @@ export class PMBoardReactiveState {
     return this.issues.filter((i) => i.status === columnId);
   }
 
+  // Get backlog issues sorted by position
+  getBacklogIssuesSorted() {
+    return this.issues
+      .filter((i) => i.status === 'backlog')
+      .sort((a, b) => {
+        // Sort by backlog_position, with null positions at the end
+        if (a.backlog_position == null && b.backlog_position == null) return 0;
+        if (a.backlog_position == null) return 1;
+        if (b.backlog_position == null) return -1;
+        return a.backlog_position - b.backlog_position;
+      });
+  }
+
   // Get filtered issues by column
   getFilteredIssuesByColumn() {
     const filtered = this.getFilteredIssues();
     const organized = {};
 
     for (const column of this.columns) {
-      organized[column.id] = filtered.filter((i) => i.status === column.id);
+      const columnIssues = filtered.filter((i) => i.status === column.id);
+
+      // Sort backlog by position
+      if (column.id === 'backlog') {
+        columnIssues.sort((a, b) => {
+          if (a.backlog_position == null && b.backlog_position == null) return 0;
+          if (a.backlog_position == null) return 1;
+          if (b.backlog_position == null) return -1;
+          return a.backlog_position - b.backlog_position;
+        });
+      }
+
+      organized[column.id] = columnIssues;
     }
 
     return organized;
@@ -180,6 +205,160 @@ export class PMBoardReactiveState {
     }
 
     return filtered;
+  }
+
+  // Trigger AI Queue workflow for a task
+  async processWithAI(taskId) {
+    const task = this.issues.find((i) => i.id === taskId);
+    if (!task) {
+      console.error('[PM Board] Task not found:', taskId);
+      return false;
+    }
+
+    if (!task.ai_automatable) {
+      if (this.showToast) {
+        this.showToast({
+          title: 'Not AI Automatable',
+          message: 'This task is not marked as AI automatable.',
+          type: 'error',
+          duration: 5000
+        });
+      }
+      return false;
+    }
+
+    // Optimistic update - mark as processing
+    const taskIndex = this.issues.findIndex((i) => i.id === taskId);
+    if (taskIndex !== -1) {
+      this.issues[taskIndex].ai_processing = true;
+      this.issues = [...this.issues];
+    }
+
+    try {
+      const response = await fetch('/pm/api/ai-process', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          task_id: taskId,
+          task_title: task.title,
+          task_description: task.description || '',
+          task_number: task.task_number,
+          priority: task.priority,
+          labels: task.labels || []
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start AI processing');
+      }
+
+      const result = await response.json();
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'AI Processing Started',
+          message: `Workflow started: ${result.workflow_id}`,
+          type: 'success',
+          duration: 5000
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to start AI processing:', error);
+
+      // Rollback optimistic update
+      if (taskIndex !== -1) {
+        this.issues[taskIndex].ai_processing = false;
+        this.issues = [...this.issues];
+      }
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'AI Processing Failed',
+          message: error.message || 'Unable to start AI processing.',
+          type: 'error',
+          duration: 5000
+        });
+      }
+
+      return false;
+    }
+  }
+
+  // Reorder a task within the backlog
+  async reorderBacklogTask(taskId, newPosition) {
+    const task = this.issues.find((i) => i.id === taskId);
+    if (!task || task.status !== 'backlog') {
+      console.error('[PM Board] Task not in backlog:', taskId);
+      return false;
+    }
+
+    const oldPosition = task.backlog_position;
+
+    // Optimistic update
+    const backlogTasks = this.getBacklogIssuesSorted();
+    const oldIndex = backlogTasks.findIndex((t) => t.id === taskId);
+    const newIndex = Math.max(0, Math.min(newPosition - 1, backlogTasks.length - 1));
+
+    if (oldIndex === newIndex) return true;
+
+    // Recompute positions
+    backlogTasks.splice(oldIndex, 1);
+    backlogTasks.splice(newIndex, 0, task);
+
+    // Update all backlog positions locally
+    backlogTasks.forEach((t, idx) => {
+      const issueIndex = this.issues.findIndex((i) => i.id === t.id);
+      if (issueIndex !== -1) {
+        this.issues[issueIndex].backlog_position = idx + 1;
+      }
+    });
+    this.issues = [...this.issues];
+
+    try {
+      // Persist to database via API
+      const response = await fetch('/pm/api/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({task_id: taskId, new_position: newIndex + 1})
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder task');
+      }
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Priority Updated',
+          message: `Task moved to position ${newIndex + 1}`,
+          type: 'success',
+          duration: 2000
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to reorder task:', error);
+
+      // Rollback - restore old position
+      const issueIndex = this.issues.findIndex((i) => i.id === taskId);
+      if (issueIndex !== -1) {
+        this.issues[issueIndex].backlog_position = oldPosition;
+        this.issues = [...this.issues];
+      }
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Reorder Failed',
+          message: 'Unable to update priority. Please try again.',
+          type: 'error',
+          duration: 5000
+        });
+      }
+
+      return false;
+    }
   }
 
   // Move issue to another column (persists to internal.tasks)

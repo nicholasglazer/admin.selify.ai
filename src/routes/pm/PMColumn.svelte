@@ -11,6 +11,9 @@
 
   const pmState = getContext('pmState');
 
+  // Check if this is the backlog column
+  let isBacklog = $derived(column.id === 'backlog');
+
   // Check if this column is being hovered during drag (with null safety)
   let isHovered = $derived(pmState?.hoveredColumn === column.id && pmState?.isDragging && pmState?.dragType === 'issue');
   let isDragOver = $derived(pmState?.dragOverColumnId === column.id && pmState?.dragType === 'column');
@@ -177,14 +180,21 @@
     {/if}
   </div>
 
-  <div class="column-body">
+  <div class="column-body" class:backlog-body={isBacklog}>
     {#if issues.length === 0}
       <div class="empty-column">
         <p>No issues</p>
       </div>
     {:else}
-      {#each issues as issue (issue.id)}
-        <IssueCard {issue} />
+      {#each issues as issue, idx (issue.id)}
+        <div class="issue-row" class:backlog-row={isBacklog}>
+          {#if isBacklog}
+            <div class="position-badge" title="Priority #{idx + 1}">
+              {idx + 1}
+            </div>
+          {/if}
+          <IssueCard {issue} />
+        </div>
       {/each}
     {/if}
 
@@ -398,5 +408,30 @@
     @apply bg-transparent hover:bg-base02 rounded-lg;
     @apply border border-transparent hover:border-border;
     @apply transition-all duration-150;
+  }
+
+  /* Backlog specific styles */
+  .issue-row {
+    @apply flex items-stretch gap-0;
+  }
+
+  .backlog-row {
+    @apply gap-2;
+  }
+
+  .backlog-row :global(.issue-card) {
+    @apply flex-1;
+  }
+
+  .position-badge {
+    @apply flex items-center justify-center;
+    @apply w-7 flex-shrink-0;
+    @apply text-xs font-bold text-base04;
+    @apply bg-base02 rounded-lg;
+    @apply border border-border;
+  }
+
+  .backlog-body {
+    @apply pl-1;
   }
 </style>
