@@ -96,16 +96,24 @@ function createMailStateInternal(initialAccounts) {
   let mailboxes = $derived(activeAccountId ? mailboxesByAccount[activeAccountId] || [] : []);
 
   /** @type {Mailbox[]} */
-  let specialMailboxes = $derived(
-    mailboxes
+  let specialMailboxes = $derived.by(() => {
+    const order = ['\\Inbox', '\\Drafts', '\\Sent', '\\Archive', '\\Junk', '\\Trash'];
+    const seen = new Set();
+
+    return mailboxes
       .filter(m => m.specialUse)
       .sort((a, b) => {
-        const order = ['\\Inbox', '\\Drafts', '\\Sent', '\\Archive', '\\Junk', '\\Trash'];
         const aIdx = a.specialUse ? order.indexOf(a.specialUse) : 99;
         const bIdx = b.specialUse ? order.indexOf(b.specialUse) : 99;
         return aIdx - bIdx;
       })
-  );
+      // Deduplicate by specialUse (e.g., keep only one Junk folder)
+      .filter(m => {
+        if (seen.has(m.specialUse)) return false;
+        seen.add(m.specialUse);
+        return true;
+      });
+  });
 
   /** @type {Mailbox[]} */
   let customMailboxes = $derived(mailboxes.filter(m => !m.specialUse));

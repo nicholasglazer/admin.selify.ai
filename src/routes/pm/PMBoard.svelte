@@ -1,7 +1,9 @@
 <script>
   import {getContext} from 'svelte';
-  import {Search, X, Plus, Check, Pencil} from '@lucide/svelte';
+  import {Search, X, Plus, Check, Pencil, LayoutGrid, List} from '@lucide/svelte';
+  import {Tabs} from '@miozu/jera';
   import PMColumn from './PMColumn.svelte';
+  import PMListView from './PMListView.svelte';
 
   const pmState = getContext('pmState');
 
@@ -11,7 +13,18 @@
   let isEditingColumns = $derived(pmState?.isEditingColumns ?? false);
   let isDragging = $derived(pmState?.isDragging ?? false);
   let dragType = $derived(pmState?.dragType ?? null);
+  let viewMode = $derived(pmState?.viewMode ?? 'board');
   let searchQuery = $state('');
+
+  // View tabs for toggle
+  const viewTabs = [
+    {id: 'board', label: 'Board', icon: LayoutGrid},
+    {id: 'list', label: 'List', icon: List}
+  ];
+
+  function handleViewChange(tab) {
+    pmState?.setViewMode?.(tab.id);
+  }
 
   // Handle search
   function handleSearch(e) {
@@ -102,44 +115,58 @@
     </div>
 
     <div class="toolbar-actions">
-      <!-- Edit columns toggle -->
-      <button
-        class="edit-columns-btn"
-        class:active={isEditingColumns}
-        onclick={() => pmState?.toggleColumnEditMode?.()}
-        title={isEditingColumns ? 'Done editing' : 'Edit columns'}
-      >
-        {#if isEditingColumns}
-          <Check size={16} />
-          <span>Done</span>
-        {:else}
-          <Pencil size={16} />
-          <span>Edit Columns</span>
-        {/if}
-      </button>
+      <!-- View mode toggle -->
+      <Tabs
+        tabs={viewTabs}
+        active={viewMode}
+        onchange={handleViewChange}
+        size="sm"
+      />
+
+      <!-- Edit columns toggle (only in board view) -->
+      {#if viewMode === 'board'}
+        <button
+          class="edit-columns-btn"
+          class:active={isEditingColumns}
+          onclick={() => pmState?.toggleColumnEditMode?.()}
+          title={isEditingColumns ? 'Done editing' : 'Edit columns'}
+        >
+          {#if isEditingColumns}
+            <Check size={16} />
+            <span>Done</span>
+          {:else}
+            <Pencil size={16} />
+            <span>Edit Columns</span>
+          {/if}
+        </button>
+      {/if}
     </div>
   </div>
 
-  <!-- Kanban columns -->
-  <div class="board-columns">
-    <!-- Add column button at start (only in edit mode) -->
-    {#if isEditingColumns}
-      <button class="add-column-btn" onclick={addColumnAtStart} title="Add column at start">
-        <Plus size={20} />
-      </button>
-    {/if}
+  <!-- Kanban columns or List view -->
+  {#if viewMode === 'board'}
+    <div class="board-columns">
+      <!-- Add column button at start (only in edit mode) -->
+      {#if isEditingColumns}
+        <button class="add-column-btn" onclick={addColumnAtStart} title="Add column at start">
+          <Plus size={20} />
+        </button>
+      {/if}
 
-    {#each columns as column (column.id)}
-      <PMColumn {column} issues={issuesByColumn[column.id] || []} />
-    {/each}
+      {#each columns as column (column.id)}
+        <PMColumn {column} issues={issuesByColumn[column.id] || []} />
+      {/each}
 
-    <!-- Add column button at end (only in edit mode) -->
-    {#if isEditingColumns}
-      <button class="add-column-btn" onclick={addColumnAtEnd} title="Add column at end">
-        <Plus size={20} />
-      </button>
-    {/if}
-  </div>
+      <!-- Add column button at end (only in edit mode) -->
+      {#if isEditingColumns}
+        <button class="add-column-btn" onclick={addColumnAtEnd} title="Add column at end">
+          <Plus size={20} />
+        </button>
+      {/if}
+    </div>
+  {:else}
+    <PMListView />
+  {/if}
 </div>
 
 <style lang="postcss">

@@ -1,7 +1,7 @@
 <script>
   import {goto} from '$app/navigation';
   import {page} from '$app/stores';
-  import {Search, ExternalLink, Copy, Check} from '@lucide/svelte';
+  import {Search, FileText, AlertTriangle, Info, Bug, Copy, Check, Filter, RefreshCw, Calendar} from '@lucide/svelte';
 
   let {data} = $props();
   const {logs, services, stats, filters, hasMore} = data;
@@ -89,14 +89,26 @@
 
 <div class="logs-page">
   <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <h1>Logs</h1>
-      <p>Centralized log aggregation via SigNoz</p>
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-info">
+        <h1 class="page-title">Application Logs</h1>
+        <p class="page-subtitle">Real-time system events and application logs across all services</p>
+      </div>
+      <div class="header-actions">
+        <button class="refresh-btn" title="Refresh logs">
+          <RefreshCw size={14} />
+          Refresh
+        </button>
+      </div>
     </div>
-    <div class="filters">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <Filter size={14} class="filter-icon" />
+        <span class="filter-label">Filter by:</span>
+      </div>
       <select
-        class="filter"
+        class="filter-select"
         value={filters.service || ''}
         onchange={(e) => updateFilter('service', e.target.value)}
         aria-label="Filter by service"
@@ -107,7 +119,7 @@
         {/each}
       </select>
       <select
-        class="filter"
+        class="filter-select"
         value={filters.level || ''}
         onchange={(e) => updateFilter('level', e.target.value)}
         aria-label="Filter by level"
@@ -119,56 +131,90 @@
         <option value="debug">Debug</option>
       </select>
       <select
-        class="filter"
+        class="filter-select time-filter"
         value={filters.hours}
         onchange={(e) => updateFilter('hours', e.target.value)}
         aria-label="Filter by time period"
       >
-        <option value="1">1h</option>
-        <option value="6">6h</option>
-        <option value="24">24h</option>
-        <option value="168">7d</option>
+        <option value="1">Last hour</option>
+        <option value="6">Last 6 hours</option>
+        <option value="24">Last 24 hours</option>
+        <option value="168">Last 7 days</option>
       </select>
     </div>
   </header>
 
-  <!-- Search Bar -->
-  <div class="search-bar">
-    <div class="search-input-wrap">
-      <Search size={16} class="search-icon" />
-      <input
-        type="text"
-        class="search-input"
-        placeholder="Search logs..."
-        bind:value={searchInput}
-        onkeydown={handleSearch}
-      />
-      {#if searchInput}
-        <button class="clear-btn" onclick={clearSearch}>&times;</button>
+  <!-- Search Section -->
+  <div class="search-section">
+    <div class="search-container">
+      <div class="search-input-wrapper">
+        <Search size={16} class="search-icon" />
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search across all log messages, services, and trace IDs..."
+          bind:value={searchInput}
+          onkeydown={handleSearch}
+        />
+        {#if searchInput}
+          <button class="clear-search-btn" onclick={clearSearch} title="Clear search">
+            <span>&times;</span>
+          </button>
+        {/if}
+      </div>
+      {#if filters.search}
+        <div class="search-active-indicator">
+          <span class="search-badge">Searching: "{filters.search}"</span>
+          <button class="clear-filter-btn" onclick={clearSearch} title="Clear filter">
+            <span>&times;</span>
+          </button>
+        </div>
       {/if}
     </div>
-    {#if filters.search}
-      <span class="search-active">Searching: "{filters.search}"</span>
-    {/if}
   </div>
 
-  <!-- Metric Strip -->
-  <div class="metric-strip">
-    <div class="metric">
-      <span class="m-val">{stats.total}</span>
-      <span class="m-lbl">Total</span>
+  <!-- Stats Overview -->
+  <div class="stats-overview">
+    <div class="stat-card">
+      <div class="stat-header">
+        <FileText size={16} class="stat-icon" />
+        <span class="stat-label">Total Logs</span>
+      </div>
+      <div class="stat-value">{stats.total.toLocaleString()}</div>
     </div>
-    <div class="metric" class:alert={stats.errors > 0}>
-      <span class="m-val">{stats.errors}</span>
-      <span class="m-lbl">Errors</span>
+
+    <div class="stat-card" class:stat-alert={stats.errors > 0}>
+      <div class="stat-header">
+        <AlertTriangle size={16} class="stat-icon" />
+        <span class="stat-label">Errors</span>
+      </div>
+      <div class="stat-value">{stats.errors.toLocaleString()}</div>
+      {#if stats.errors > 0}
+        <div class="stat-trend error">
+          Requires attention
+        </div>
+      {/if}
     </div>
-    <div class="metric" class:warn={stats.warnings > 0}>
-      <span class="m-val">{stats.warnings}</span>
-      <span class="m-lbl">Warnings</span>
+
+    <div class="stat-card" class:stat-warning={stats.warnings > 0}>
+      <div class="stat-header">
+        <AlertTriangle size={16} class="stat-icon" />
+        <span class="stat-label">Warnings</span>
+      </div>
+      <div class="stat-value">{stats.warnings.toLocaleString()}</div>
+      {#if stats.warnings > 0}
+        <div class="stat-trend warning">
+          Monitor closely
+        </div>
+      {/if}
     </div>
-    <div class="metric">
-      <span class="m-val">{stats.info}</span>
-      <span class="m-lbl">Info</span>
+
+    <div class="stat-card">
+      <div class="stat-header">
+        <Info size={16} class="stat-icon" />
+        <span class="stat-label">Info</span>
+      </div>
+      <div class="stat-value">{stats.info.toLocaleString()}</div>
     </div>
   </div>
 
@@ -177,9 +223,48 @@
     <h2>Log Entries <span class="count">({logs.length}{hasMore ? '+' : ''})</span></h2>
 
     {#if logs.length === 0}
-      <div class="empty">
-        <span class="empty-dot"></span>
-        <p>No logs in this period</p>
+      <div class="empty-state">
+        <div class="empty-illustration">
+          <div class="empty-icon-container">
+            <FileText size={48} class="empty-icon" />
+            <div class="empty-sparkles">
+              <div class="sparkle sparkle-1"></div>
+              <div class="sparkle sparkle-2"></div>
+              <div class="sparkle sparkle-3"></div>
+            </div>
+          </div>
+        </div>
+        <div class="empty-content">
+          <h3 class="empty-title">No logs found</h3>
+          <p class="empty-description">
+            {#if filters.search}
+              No logs match your search criteria for <strong>"{filters.search}"</strong>.
+              Try adjusting your filters or search terms.
+            {:else if filters.service || filters.level}
+              No logs found with the current filters applied.
+              Try broadening your search or checking a different time range.
+            {:else}
+              Your applications are running quietly right now.
+              Logs will appear here as your services generate events.
+            {/if}
+          </p>
+          <div class="empty-actions">
+            {#if filters.search || filters.service || filters.level}
+              <button class="clear-filters-btn" onclick={() => {
+                searchInput = '';
+                updateFilter('search', null);
+                updateFilter('service', null);
+                updateFilter('level', null);
+              }}>
+                Clear all filters
+              </button>
+            {/if}
+            <button class="refresh-logs-btn" onclick={() => window.location.reload()}>
+              <RefreshCw size={14} />
+              Refresh logs
+            </button>
+          </div>
+        </div>
       </div>
     {:else}
       <div class="logs-list">
@@ -280,25 +365,25 @@
                 <!-- Actions -->
                 <div class="actions">
                   {#if log.trace_id}
-                    <a
-                      href="https://metrics.selify.ai/trace/{log.trace_id}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="action-btn trace"
-                    >
-                      <ExternalLink size={12} />
-                      View Trace
-                    </a>
+                    <button class="action-btn trace" onclick={() => copyToClipboard(log.trace_id, `full-trace-${i}`)}>
+                      {#if copiedId === `full-trace-${i}`}
+                        <Check size={12} />
+                        Copied
+                      {:else}
+                        <Copy size={12} />
+                        Copy Trace ID
+                      {/if}
+                    </button>
                   {/if}
-                  <a
-                    href="https://metrics.selify.ai/logs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="action-btn"
-                  >
-                    <ExternalLink size={12} />
-                    Open SigNoz
-                  </a>
+                  <button class="action-btn" onclick={() => copyToClipboard(JSON.stringify(log, null, 2), `full-log-${i}`)}>
+                    {#if copiedId === `full-log-${i}`}
+                      <Check size={12} />
+                      Copied
+                    {:else}
+                      <Copy size={12} />
+                      Copy Full Log
+                    {/if}
+                  </button>
                 </div>
               </div>
             {/if}
@@ -308,7 +393,14 @@
 
       {#if hasMore}
         <div class="load-more">
-          <p>Showing first {logs.length} logs. Open SigNoz for full results.</p>
+          <div class="load-more-content">
+            <p class="load-more-text">
+              Showing the first {logs.length} logs from this time period.
+            </p>
+            <p class="load-more-hint">
+              Use filters above to narrow down results or expand the time range for more data.
+            </p>
+          </div>
         </div>
       {/if}
     {/if}
@@ -319,146 +411,324 @@
   @reference '$theme';
 
   .logs-page {
-    @apply w-full;
+    @apply w-full min-h-full;
   }
 
-  /* Header */
-  .header {
-    @apply flex justify-between items-start mb-6 flex-wrap gap-4;
+  /* Modern Page Header */
+  .page-header {
+    @apply mb-8 pb-6 border-b border-base02/50;
   }
 
-  .header h1 {
-    @apply text-2xl font-semibold text-base06 m-0;
-    letter-spacing: -0.02em;
+  .header-content {
+    @apply flex justify-between items-start mb-6;
   }
 
-  .header p {
-    @apply text-sm text-base04 mt-1;
+  .header-info {
+    @apply flex-1;
   }
 
-  .filters {
-    @apply flex gap-2;
+  .page-title {
+    @apply text-3xl font-semibold text-base07 mb-2;
+    letter-spacing: -0.03em;
   }
 
-  .filter {
-    @apply px-3 py-1.5 bg-base01 border border-base02 rounded-md;
-    @apply text-sm text-base05 cursor-pointer;
-    @apply focus:outline-none focus:border-base03;
+  .page-subtitle {
+    @apply text-base04 text-base leading-relaxed max-w-2xl;
   }
 
-  /* Search Bar */
-  .search-bar {
-    @apply flex items-center gap-4 mb-6;
+  .header-actions {
+    @apply flex gap-3;
   }
 
-  .search-input-wrap {
-    @apply flex items-center flex-1 max-w-md;
-    @apply bg-base01 border border-base02 rounded-md px-3;
-    @apply focus-within:border-base03;
+  .refresh-btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-base01 border border-base02;
+    @apply rounded-lg text-sm font-medium text-base05 hover:bg-base02 hover:border-base03;
+    @apply transition-all duration-200 cursor-pointer;
   }
 
-  .search-input-wrap :global(.search-icon) {
-    @apply text-base04 flex-shrink-0;
+  .filters-bar {
+    @apply flex items-center gap-4 flex-wrap;
+  }
+
+  .filter-group {
+    @apply flex items-center gap-2 text-sm text-base04;
+  }
+
+  .filter-icon {
+    @apply text-base04;
+  }
+
+  .filter-label {
+    @apply font-medium;
+  }
+
+  .filter-select {
+    @apply px-3 py-2 bg-base01 border border-base02 rounded-lg text-sm text-base05;
+    @apply hover:border-base03 focus:outline-none focus:border-base0D focus:ring-1 focus:ring-base0D/20;
+    @apply transition-all duration-200 cursor-pointer;
+  }
+
+  .time-filter {
+    @apply bg-base0D/5 border-base0D/30 text-base0D;
+  }
+
+  /* Modern Search Section */
+  .search-section {
+    @apply mb-8;
+  }
+
+  .search-container {
+    @apply space-y-3;
+  }
+
+  .search-input-wrapper {
+    @apply relative flex items-center max-w-2xl;
+    @apply bg-base01 border border-base02 rounded-xl px-4 py-3;
+    @apply hover:border-base03 focus-within:border-base0D focus-within:ring-1 focus-within:ring-base0D/20;
+    @apply transition-all duration-200;
+  }
+
+  .search-input-wrapper :global(.search-icon) {
+    @apply text-base04 flex-shrink-0 mr-3;
   }
 
   .search-input {
-    @apply flex-1 py-2 px-2 bg-transparent border-none;
-    @apply text-sm text-base05 placeholder:text-base04;
-    @apply focus:outline-none;
+    @apply flex-1 bg-transparent border-none text-base05 placeholder:text-base04;
+    @apply text-sm leading-relaxed focus:outline-none;
   }
 
-  .clear-btn {
-    @apply text-base04 hover:text-base05 cursor-pointer;
-    @apply bg-transparent border-none text-lg leading-none px-1;
+  .clear-search-btn {
+    @apply ml-2 p-1 text-base04 hover:text-base05 hover:bg-base02 rounded-md;
+    @apply transition-colors duration-200 cursor-pointer flex-shrink-0;
   }
 
-  .search-active {
-    @apply text-xs text-base0D bg-base0D/10 px-2 py-1 rounded;
+  .clear-search-btn span {
+    @apply text-lg leading-none;
   }
 
-  /* Metric Strip */
-  .metric-strip {
-    @apply flex gap-8 mb-8 py-4 px-5;
-    @apply bg-base01/50 rounded-lg;
+  .search-active-indicator {
+    @apply flex items-center gap-2;
   }
 
-  .metric {
-    @apply flex flex-col;
+  .search-badge {
+    @apply inline-flex items-center px-3 py-1.5 bg-base0D/10 border border-base0D/30;
+    @apply rounded-full text-sm text-base0D;
   }
 
-  .metric.alert .m-val {
+  .clear-filter-btn {
+    @apply ml-2 p-1 text-base0D/70 hover:text-base0D hover:bg-base0D/10 rounded-full;
+    @apply transition-colors duration-200 cursor-pointer;
+  }
+
+  /* Modern Stats Overview */
+  .stats-overview {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8;
+  }
+
+  .stat-card {
+    @apply bg-base01 border border-base02 rounded-xl p-6;
+    @apply hover:border-base03 transition-all duration-200;
+    @apply relative overflow-hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-base02/20 to-transparent opacity-0;
+    @apply transition-opacity duration-200;
+  }
+
+  .stat-card:hover::before {
+    @apply opacity-100;
+  }
+
+  .stat-card.stat-alert {
+    @apply border-base08/30 bg-base08/5;
+  }
+
+  .stat-card.stat-alert .stat-icon {
     @apply text-base08;
   }
 
-  .metric.warn .m-val {
+  .stat-card.stat-warning {
+    @apply border-base09/30 bg-base09/5;
+  }
+
+  .stat-card.stat-warning .stat-icon {
     @apply text-base09;
   }
 
-  .m-val {
-    @apply text-2xl font-semibold text-base06;
+  .stat-header {
+    @apply flex items-center gap-3 mb-3;
+  }
+
+  .stat-icon {
+    @apply text-base04;
+  }
+
+  .stat-label {
+    @apply text-sm font-medium text-base04;
+  }
+
+  .stat-value {
+    @apply text-2xl font-semibold text-base06 mb-2;
     letter-spacing: -0.02em;
   }
 
-  .m-lbl {
-    @apply text-xs text-base04 uppercase tracking-wider mt-0.5;
+  .stat-alert .stat-value {
+    @apply text-base08;
+  }
+
+  .stat-warning .stat-value {
+    @apply text-base09;
+  }
+
+  .stat-trend {
+    @apply text-xs px-2 py-1 rounded-full font-medium;
+  }
+
+  .stat-trend.error {
+    @apply bg-base08/15 text-base08;
+  }
+
+  .stat-trend.warning {
+    @apply bg-base09/15 text-base09;
   }
 
   /* Logs Section */
   .logs-section h2 {
-    @apply text-xs font-medium text-base04 uppercase tracking-wider mb-4;
-    @apply flex items-center gap-2;
+    @apply text-sm font-semibold text-base05 mb-6;
+    @apply flex items-center gap-3;
   }
 
   .count {
-    @apply text-base04 font-normal;
+    @apply text-base04 font-normal bg-base02 px-2 py-1 rounded-md text-xs;
+  }
+
+  /* Sophisticated Empty State */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 px-6 text-center;
+  }
+
+  .empty-illustration {
+    @apply relative mb-8;
+  }
+
+  .empty-icon-container {
+    @apply relative;
+  }
+
+  .empty-icon {
+    @apply text-base03;
+  }
+
+  .empty-sparkles {
+    @apply absolute inset-0;
+  }
+
+  .sparkle {
+    @apply absolute w-1 h-1 bg-base0B rounded-full animate-ping;
+  }
+
+  .sparkle-1 {
+    @apply top-2 left-8;
+    animation-delay: 0s;
+  }
+
+  .sparkle-2 {
+    @apply top-6 right-4;
+    animation-delay: 0.5s;
+  }
+
+  .sparkle-3 {
+    @apply bottom-4 left-6;
+    animation-delay: 1s;
+  }
+
+  .empty-content {
+    @apply max-w-md;
+  }
+
+  .empty-title {
+    @apply text-xl font-semibold text-base06 mb-3;
+  }
+
+  .empty-description {
+    @apply text-base04 leading-relaxed mb-6;
+  }
+
+  .empty-actions {
+    @apply flex flex-col sm:flex-row gap-3 justify-center;
+  }
+
+  .clear-filters-btn {
+    @apply px-4 py-2 bg-base0D text-white rounded-lg font-medium;
+    @apply hover:bg-base0D/90 transition-colors duration-200;
+  }
+
+  .refresh-logs-btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-base01 border border-base02;
+    @apply rounded-lg font-medium text-base05 hover:bg-base02 hover:border-base03;
+    @apply transition-all duration-200;
   }
 
   .logs-list {
-    @apply space-y-1;
+    @apply space-y-2;
   }
 
   .log-row {
-    @apply bg-base01 border border-base02 rounded-lg overflow-hidden;
-    @apply transition-all duration-150;
+    @apply bg-base01 border border-base02 rounded-xl overflow-hidden;
+    @apply transition-all duration-200 hover:shadow-sm;
   }
 
   .log-row:hover {
-    @apply border-base03;
+    @apply border-base03 bg-base01/80;
   }
 
   .log-row.expanded {
-    @apply border-base03;
+    @apply border-base03 shadow-sm ring-1 ring-base03/20;
   }
 
   .log-main {
-    @apply w-full flex justify-between items-center px-4 py-2.5;
+    @apply w-full flex justify-between items-center px-6 py-4;
     @apply cursor-pointer text-left bg-transparent border-none;
+    @apply transition-colors duration-200;
   }
 
   .log-left {
-    @apply flex items-center gap-3 flex-1 min-w-0;
+    @apply flex items-center gap-4 flex-1 min-w-0;
   }
 
   .severity-dot {
-    @apply w-2 h-2 rounded-full flex-shrink-0;
-    @apply bg-base04;
+    @apply w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-transparent;
+    @apply bg-base04 transition-all duration-200;
   }
 
-  .severity-dot.error { @apply bg-base08; }
-  .severity-dot.warn { @apply bg-base09; }
-  .severity-dot.info { @apply bg-base0B; }
-  .severity-dot.debug { @apply bg-base03; }
+  .severity-dot.error {
+    @apply bg-base08 ring-base08/20;
+  }
+
+  .severity-dot.warn {
+    @apply bg-base09 ring-base09/20;
+  }
+
+  .severity-dot.info {
+    @apply bg-base0B ring-base0B/20;
+  }
+
+  .severity-dot.debug {
+    @apply bg-base03;
+  }
 
   .log-time {
-    @apply text-xs font-mono text-base04 flex-shrink-0;
+    @apply text-xs font-mono text-base04 flex-shrink-0 bg-base02 px-2 py-1 rounded-md;
   }
 
   .log-svc {
-    @apply text-xs px-2 py-0.5 bg-base02 rounded text-base05 flex-shrink-0;
+    @apply text-xs px-3 py-1 bg-base02 rounded-full text-base05 flex-shrink-0 font-medium;
   }
 
   .log-body {
-    @apply text-sm text-base05 truncate;
+    @apply text-sm text-base05 truncate flex-1;
   }
 
   .log-right {
@@ -466,56 +736,56 @@
   }
 
   .log-level {
-    @apply px-2 py-0.5 rounded font-medium uppercase text-[10px];
-    @apply bg-base02 text-base04;
+    @apply px-3 py-1 rounded-full font-medium uppercase text-[11px] tracking-wide;
+    @apply bg-base02 text-base04 transition-colors duration-200;
   }
 
-  .log-level.error { @apply bg-base08/15 text-base08; }
-  .log-level.warn { @apply bg-base09/15 text-base09; }
-  .log-level.info { @apply bg-base0B/15 text-base0B; }
-  .log-level.debug { @apply bg-base03/20 text-base04; }
+  .log-level.error { @apply bg-base08/15 text-base08 border border-base08/30; }
+  .log-level.warn { @apply bg-base09/15 text-base09 border border-base09/30; }
+  .log-level.info { @apply bg-base0B/15 text-base0B border border-base0B/30; }
+  .log-level.debug { @apply bg-base03/20 text-base04 border border-base03/30; }
 
   .chevron {
-    @apply text-base04 transition-transform text-lg leading-none;
+    @apply text-base04 transition-transform duration-200 text-lg leading-none;
   }
 
   .log-row.expanded .chevron {
-    @apply rotate-90;
+    @apply rotate-90 text-base05;
   }
 
-  /* Log Details */
+  /* Modern Log Details */
   .log-details {
-    @apply px-4 pb-4 pt-0 border-t border-base02;
+    @apply px-6 pb-6 pt-4 bg-base01/50 border-t border-base02;
   }
 
   .detail-section {
-    @apply py-3 border-b border-base02;
+    @apply py-4 border-b border-base02/50;
   }
 
   .detail-section:last-child {
-    @apply border-b-0;
+    @apply border-b-0 pb-0;
   }
 
   .log-body-full {
-    @apply text-sm text-base05 mt-2 p-3 bg-base02/50 rounded;
-    @apply whitespace-pre-wrap break-words font-mono;
-    @apply max-h-48 overflow-auto;
+    @apply text-sm text-base05 mt-3 p-4 bg-base02/30 rounded-lg border border-base02;
+    @apply whitespace-pre-wrap break-words font-mono leading-relaxed;
+    @apply max-h-64 overflow-auto;
   }
 
   .detail-grid {
-    @apply grid grid-cols-2 gap-x-8 gap-y-3 py-4;
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 py-4;
   }
 
   .detail {
-    @apply flex flex-col gap-1;
+    @apply flex flex-col gap-2;
   }
 
   .d-label {
-    @apply text-xs text-base04 uppercase tracking-wide;
+    @apply text-xs text-base04 uppercase tracking-wider font-medium;
   }
 
   .d-value {
-    @apply text-sm text-base05;
+    @apply text-sm text-base05 bg-base02/30 px-3 py-2 rounded-lg;
   }
 
   .d-value.mono {
@@ -523,89 +793,140 @@
   }
 
   .d-value-copy {
-    @apply flex items-center gap-2;
+    @apply flex items-center gap-2 bg-base02/30 px-3 py-2 rounded-lg;
   }
 
   .trace-id {
-    @apply font-mono text-xs bg-base02 px-2 py-1 rounded;
+    @apply font-mono text-xs bg-base02/50 px-2 py-1 rounded-md;
   }
 
   .copy-btn {
-    @apply p-1 bg-transparent border-none cursor-pointer;
-    @apply text-base04 hover:text-base05 transition-colors;
+    @apply p-1.5 bg-base02 hover:bg-base03 border border-base02 hover:border-base03;
+    @apply rounded-md cursor-pointer text-base04 hover:text-base05;
+    @apply transition-all duration-200;
   }
 
   /* Attributes Grid */
   .attrs-grid {
-    @apply grid grid-cols-1 gap-2 mt-2;
+    @apply grid grid-cols-1 gap-3 mt-3;
   }
 
   .attr {
-    @apply flex items-start gap-2 text-sm;
+    @apply flex items-start gap-3 text-sm p-3 bg-base02/20 rounded-lg;
   }
 
   .attr-key {
-    @apply text-base04 font-mono text-xs flex-shrink-0;
+    @apply text-base04 font-mono text-xs flex-shrink-0 font-medium min-w-24;
   }
 
   .attr-val {
-    @apply text-base05 break-all;
+    @apply text-base05 break-all flex-1;
   }
 
-  /* Actions */
+  /* Modern Actions */
   .actions {
-    @apply flex gap-2 pt-3;
+    @apply flex gap-3 pt-4;
   }
 
   .action-btn {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md;
-    @apply bg-base02 border border-base03 text-base05;
-    @apply no-underline cursor-pointer transition-all;
-  }
-
-  .action-btn:hover {
-    @apply bg-base03;
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium;
+    @apply bg-base02 border border-base03 text-base05 hover:bg-base03 hover:border-base04;
+    @apply transition-all duration-200 cursor-pointer;
   }
 
   .action-btn.trace {
-    @apply bg-base0D/10 border-base0D/30 text-base0D;
+    @apply bg-base0D/10 border-base0D/30 text-base0D hover:bg-base0D/20;
   }
 
-  /* Empty State */
-  .empty {
-    @apply flex items-center gap-3 py-12 px-4;
-    @apply text-base04 justify-center;
-  }
-
-  .empty-dot {
-    @apply w-2 h-2 rounded-full bg-base0B;
-  }
-
-  /* Load More */
+  /* Modern Load More */
   .load-more {
-    @apply text-center py-4 text-sm text-base04;
+    @apply mt-8 p-6 bg-base01 border border-base02 rounded-xl text-center;
   }
 
-  /* Responsive */
+  .load-more-content {
+    @apply max-w-md mx-auto;
+  }
+
+  .load-more-text {
+    @apply text-sm text-base05 mb-2;
+  }
+
+  .load-more-hint {
+    @apply text-xs text-base04 leading-relaxed;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .stats-overview {
+      @apply grid-cols-2;
+    }
+  }
+
   @media (max-width: 768px) {
-    .metric-strip {
-      @apply grid grid-cols-2 gap-4;
+    .page-title {
+      @apply text-2xl;
+    }
+
+    .header-content {
+      @apply flex-col gap-4;
+    }
+
+    .filters-bar {
+      @apply flex-col items-start gap-3;
+    }
+
+    .stats-overview {
+      @apply grid-cols-1;
+    }
+
+    .log-main {
+      @apply px-4 py-3;
+    }
+
+    .log-left {
+      @apply gap-3;
     }
 
     .log-right {
       @apply hidden;
     }
 
-    .filters {
-      @apply flex-wrap;
+    .log-details {
+      @apply px-4;
     }
 
     .detail-grid {
       @apply grid-cols-1;
     }
 
-    .search-input-wrap {
+    .search-input-wrapper {
       @apply max-w-full;
+    }
+
+    .empty-actions {
+      @apply flex-col;
+    }
+
+    .actions {
+      @apply flex-col;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .log-left {
+      @apply gap-2;
+    }
+
+    .log-svc {
+      @apply hidden;
+    }
+
+    .log-time {
+      @apply hidden;
+    }
+
+    .stat-card {
+      @apply p-4;
     }
   }
 </style>

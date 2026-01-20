@@ -17,7 +17,6 @@
   } from '$components/icons';
   import {Button} from '@miozu/jera';
   import {Badge} from '@miozu/jera';
-  import AccountSwitcher from './AccountSwitcher.svelte';
 
   let {mail, class: className = ''} = $props();
 
@@ -53,11 +52,6 @@
 </script>
 
 <aside class="mailbox-sidebar {className}">
-  <!-- Account Switcher -->
-  <div class="sidebar-header">
-    <AccountSwitcher {mail} />
-  </div>
-
   <!-- Compose Button -->
   <div class="compose-section">
     <Button variant="primary md" class="compose-btn" onclick={() => mail.openCompose()}>
@@ -131,10 +125,6 @@
     @apply flex flex-col w-60 flex-shrink-0;
     @apply bg-base01 border-r border-border/30;
     @apply h-full overflow-hidden;
-  }
-
-  .sidebar-header {
-    @apply p-3 border-b border-border/20;
   }
 
   .compose-section {

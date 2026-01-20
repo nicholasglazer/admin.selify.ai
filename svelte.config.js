@@ -6,6 +6,21 @@ export default {
     runes: true
   },
   kit: {
+    prerender: {
+      entries: [
+        '/docs',
+        '/docs/generated/database/public-schema',
+        '/docs/generated/api/routes'
+      ],
+      handleHttpError: ({path, referrer, message}) => {
+        // Ignore 404s for docs pages that may not exist yet
+        if (path.startsWith('/docs/')) {
+          console.warn(`Warning: ${path} - ${message}`);
+          return;
+        }
+        throw new Error(message);
+      }
+    },
     adapter: adapter({
       routes: {
         include: ['/*'],

@@ -74,6 +74,10 @@ export class PMBoardReactiveState {
     labels: []
   });
 
+  // List view sorting
+  sortColumn = $state('updated_at');
+  sortDirection = $state('desc'); // 'asc' | 'desc'
+
   // Column Editing State
   isEditingColumns = $state(false);
   editingColumnId = $state(null);
@@ -1007,6 +1011,77 @@ export class PMBoardReactiveState {
       priority: null,
       labels: []
     };
+  }
+
+  // Set view mode (board | list)
+  setViewMode(mode) {
+    this.viewMode = mode;
+  }
+
+  // Set sort column and direction for list view
+  setSort(column) {
+    if (this.sortColumn === column) {
+      // Toggle direction if same column
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+  }
+
+  // Get sorted and filtered issues for list view
+  getSortedIssues() {
+    const filtered = this.getFilteredIssues();
+
+    const priorityOrder = {critical: 0, high: 1, medium: 2, low: 3};
+    const statusOrder = {};
+    this.columns.forEach((col, idx) => {
+      statusOrder[col.id] = idx;
+    });
+
+    return filtered.sort((a, b) => {
+      let aVal, bVal;
+
+      switch (this.sortColumn) {
+        case 'title':
+          aVal = a.title?.toLowerCase() || '';
+          bVal = b.title?.toLowerCase() || '';
+          break;
+        case 'status':
+          aVal = statusOrder[a.status] ?? 999;
+          bVal = statusOrder[b.status] ?? 999;
+          break;
+        case 'priority':
+          aVal = priorityOrder[a.priority] ?? 999;
+          bVal = priorityOrder[b.priority] ?? 999;
+          break;
+        case 'assignee':
+          aVal = a.assignee?.toLowerCase() || 'zzz';
+          bVal = b.assignee?.toLowerCase() || 'zzz';
+          break;
+        case 'updated_at':
+          aVal = new Date(a.updated_at || 0).getTime();
+          bVal = new Date(b.updated_at || 0).getTime();
+          break;
+        case 'created_at':
+          aVal = new Date(a.created_at || 0).getTime();
+          bVal = new Date(b.created_at || 0).getTime();
+          break;
+        case 'issue_type':
+          aVal = a.issue_type || '';
+          bVal = b.issue_type || '';
+          break;
+        default:
+          aVal = a[this.sortColumn] || '';
+          bVal = b[this.sortColumn] || '';
+      }
+
+      let comparison = 0;
+      if (aVal < bVal) comparison = -1;
+      if (aVal > bVal) comparison = 1;
+
+      return this.sortDirection === 'asc' ? comparison : -comparison;
+    });
   }
 
   // Get issue counts by column

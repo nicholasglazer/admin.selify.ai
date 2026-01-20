@@ -133,12 +133,13 @@ export const handle = async ({event, resolve}) => {
   event.locals.session = session;
   event.locals.user = user;
 
-  // Auth protection for all routes except /auth/*
+  // Auth protection for all routes except /auth/*, /api/*, and /docs/*
   const pathname = event.url.pathname;
   const isAuthRoute = pathname.startsWith('/auth');
   const isApiRoute = pathname.startsWith('/api');
+  const isDocsRoute = pathname.startsWith('/docs');
 
-  if (!isAuthRoute && !isApiRoute && !user) {
+  if (!isAuthRoute && !isApiRoute && !isDocsRoute && !user) {
     // Redirect to dash.selify.ai auth page with proper return_to
     const returnTo = isWebmailSubdomain
       ? 'https://webmail.selify.ai/'
