@@ -9,9 +9,16 @@
       description: 'Auto-generated from live sources. Updated on triggers.',
       items: [
         {
-          title: 'Database Schema',
-          description: 'PostgreSQL tables, columns, indexes, and RLS policies.',
+          title: 'Public Schema',
+          description: 'Customer-facing PostgreSQL tables (workspaces, profiles, products, billing).',
           href: '/docs/generated/database/public-schema',
+          icon: Database,
+          badge: 'Auto'
+        },
+        {
+          title: 'Internal Schema',
+          description: 'Operations tables (tasks, team_members, approvals, git integration).',
+          href: '/docs/generated/database/internal-schema',
           icon: Database,
           badge: 'Auto'
         },
@@ -21,19 +28,6 @@
           href: '/docs/generated/api/routes',
           icon: Route,
           badge: 'Auto'
-        }
-      ]
-    },
-    {
-      title: 'Guides',
-      description: 'Hand-written documentation and architecture decisions.',
-      items: [
-        {
-          title: 'Architecture Overview',
-          description: 'System design and component relationships.',
-          href: '/docs/guides/architecture',
-          icon: FileText,
-          badge: null
         }
       ]
     }

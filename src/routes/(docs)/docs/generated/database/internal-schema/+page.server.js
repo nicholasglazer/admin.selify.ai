@@ -26,7 +26,7 @@ marked.use({
 export async function load({fetch}) {
   try {
     // Fetch from API
-    const response = await fetch(`${API_BASE_URL}/api/docs/generated/database/public-schema`);
+    const response = await fetch(`${API_BASE_URL}/api/docs/generated/database/internal-schema`);
 
     if (!response.ok) {
       throw new Error(`API returned ${response.status}`);
@@ -36,9 +36,9 @@ export async function load({fetch}) {
 
     if (!data.exists) {
       return {
-        title: 'Database Schema',
-        description: 'Schema documentation not yet generated.',
-        html: '<p>Run the DocumentationWorkflow to generate schema documentation.</p>',
+        title: 'Internal Schema',
+        description: 'Internal schema documentation not yet generated.',
+        html: '<p>Run the DocumentationWorkflow to generate internal schema documentation.</p>',
         notGenerated: true,
       };
     }
@@ -50,7 +50,7 @@ export async function load({fetch}) {
     const html = await marked(body);
 
     return {
-      title: frontmatter.title || 'Database Schema',
+      title: frontmatter.title || 'Internal Schema',
       description: frontmatter.description || '',
       generatedAt: frontmatter.generated_at || null,
       generator: frontmatter.generator || null,
@@ -59,12 +59,12 @@ export async function load({fetch}) {
       html,
     };
   } catch (err) {
-    console.error('Failed to load schema docs:', err.message);
+    console.error('Failed to load internal schema docs:', err.message);
     // Doc not yet generated
     return {
-      title: 'Database Schema',
-      description: 'Schema documentation not yet generated.',
-      html: '<p>Run the DocumentationWorkflow to generate schema documentation.</p>',
+      title: 'Internal Schema',
+      description: 'Internal schema documentation not yet generated.',
+      html: '<p>Run the DocumentationWorkflow to generate internal schema documentation.</p>',
       notGenerated: true,
     };
   }

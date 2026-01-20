@@ -12,14 +12,9 @@
     {
       title: 'Generated',
       items: [
-        {title: 'Database Schema', href: '/docs/generated/database/public-schema', icon: Database},
+        {title: 'Public Schema', href: '/docs/generated/database/public-schema', icon: Database},
+        {title: 'Internal Schema', href: '/docs/generated/database/internal-schema', icon: Database},
         {title: 'API Routes', href: '/docs/generated/api/routes', icon: Route},
-      ]
-    },
-    {
-      title: 'Guides',
-      items: [
-        {title: 'Architecture', href: '/docs/guides/architecture', icon: FileText},
       ]
     }
   ];

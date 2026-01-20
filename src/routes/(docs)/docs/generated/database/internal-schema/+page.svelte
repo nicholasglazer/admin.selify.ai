@@ -1,10 +1,10 @@
 <script>
-  import {Clock, RefreshCw, AlertCircle, Database, ChevronRight, Search, X} from '@lucide/svelte';
-  import {Badge, Tabs} from '@miozu/jera';
+  import {Clock, RefreshCw, AlertCircle, Shield, ChevronRight, Search, X} from '@lucide/svelte';
+  import {Badge} from '@miozu/jera';
 
   let {data} = $props();
 
-  const workflowCmd = `temporal workflow start --type DocumentationWorkflow --input '{"generators": ["schema"]}'`;
+  const workflowCmd = `temporal workflow start --type DocumentationWorkflow --input '{"generators": ["schema"], "schemas": ["internal"]}'`;
 
   // Extract table names from HTML for TOC
   let tableNames = $derived.by(() => {
@@ -26,14 +26,6 @@
 
   // Active section tracking
   let activeSection = $state('');
-
-  // View mode
-  let viewMode = $state('all');
-  const viewTabs = [
-    {id: 'all', label: 'All Tables'},
-    {id: 'rls', label: 'With RLS'},
-    {id: 'no-rls', label: 'No RLS'}
-  ];
 
   function scrollToTable(id) {
     const el = document.getElementById(id);
@@ -57,16 +49,16 @@
   {#if data.notGenerated}
     <div class="not-generated">
       <AlertCircle size={48} />
-      <h1>Schema Not Generated</h1>
-      <p>Run the DocumentationWorkflow to generate schema documentation.</p>
+      <h1>Internal Schema Not Generated</h1>
+      <p>Run the DocumentationWorkflow to generate internal schema documentation.</p>
       <code>{workflowCmd}</code>
     </div>
   {:else}
     <!-- Left: Table of Contents -->
     <aside class="toc-sidebar">
       <div class="toc-header">
-        <Database size={16} />
-        <span class="toc-title">Tables</span>
+        <Shield size={16} />
+        <span class="toc-title">Internal Tables</span>
         <Badge variant="secondary" size="sm">{tableNames.length}</Badge>
       </div>
 
@@ -121,13 +113,14 @@
             {/if}
           </div>
         </div>
-        {#if data.tags?.length}
-          <div class="header-tags">
+        <div class="header-tags">
+          <Badge variant="warning" size="sm">Internal Only</Badge>
+          {#if data.tags?.length}
             {#each data.tags as tag}
               <Badge variant="secondary" size="sm">{tag}</Badge>
             {/each}
-          </div>
-        {/if}
+          {/if}
+        </div>
       </header>
 
       <div class="doc-content">
@@ -154,11 +147,11 @@
   .toc-header {
     @apply flex items-center gap-2 p-4;
     @apply border-b border-base02;
-    @apply text-base05;
+    @apply text-base0A;
   }
 
   .toc-title {
-    @apply text-sm font-medium flex-1;
+    @apply text-sm font-medium flex-1 text-base05;
   }
 
   .toc-search {
@@ -191,7 +184,7 @@
   }
 
   .toc-item.active {
-    @apply bg-base0D/15 text-base0D;
+    @apply bg-base0A/15 text-base0A;
   }
 
   .toc-item span {
@@ -256,7 +249,7 @@
   }
 
   .doc-content :global(blockquote) {
-    @apply border-l-4 border-base0D pl-4 text-base04 my-4;
+    @apply border-l-4 border-base0A pl-4 text-base04 my-4;
     @apply bg-base01 py-2 pr-4 rounded-r;
   }
 
