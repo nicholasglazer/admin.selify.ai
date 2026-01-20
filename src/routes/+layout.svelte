@@ -32,8 +32,14 @@
       // Create internal schema proxy from the main client (shares session)
       supabaseHolder.internalClient = createInternalSchemaProxy(supabaseHolder.client);
 
-      // Fetch initial active processes for the tracker
-      temporalState.fetchActiveProcesses();
+      // Only fetch active processes if user has temporal access
+      // Avoid unnecessary API calls on ops pages that don't need this
+      if (data.capabilities?.includes('*') || data.capabilities?.includes('ops.temporal.view')) {
+        // Delay initial fetch to avoid competing with page-specific API calls
+        setTimeout(() => {
+          temporalState.fetchActiveProcesses();
+        }, 2000);
+      }
     }
   });
 

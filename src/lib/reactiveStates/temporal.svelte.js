@@ -102,6 +102,12 @@ export class TemporalReactiveState {
   maxReconnectAttempts = 5;
   reconnectDelay = 1000;
 
+  // Rate limiting management
+  isRateLimited = false;
+  rateLimitBackoffMs = 1000; // Start with 1 second
+  maxBackoffMs = 60000; // Max 1 minute between requests
+  rateLimitTimeout = null;
+
   // =============================================
   // External References
   // =============================================
@@ -258,18 +264,29 @@ export class TemporalReactiveState {
       });
 
       if (!response.ok) {
+        // Handle rate limiting with exponential backoff
+        if (response.status === 429) {
+          this.handleRateLimit();
+          return;
+        }
         throw new Error(`Failed to fetch active processes: ${response.status}`);
       }
 
       const data = await response.json();
       this.activeProcesses = data.processes || [];
 
+      // Reset rate limit state on successful fetch
+      this.resetRateLimit();
+
       // Show tracker if we have active processes
       if (this.activeProcesses.length > 0) {
         this.trackerVisible = true;
       }
     } catch (err) {
-      console.error('Failed to fetch active processes:', err);
+      // Only log errors that aren't rate limit related
+      if (!err.message.includes('429')) {
+        console.error('Failed to fetch active processes:', err);
+      }
     }
   }
 
@@ -571,20 +588,64 @@ export class TemporalReactiveState {
   }
 
   startPolling() {
-    // Poll for active processes every 3 seconds as backup
+    // Poll for active processes every 5 seconds as backup (reduced from 3s to be less aggressive)
     if (this._pollInterval) {
       clearInterval(this._pollInterval);
     }
 
     this._pollInterval = setInterval(() => {
+      // Don't poll if we're rate limited
+      if (this.isRateLimited) {
+        return;
+      }
       this.fetchActiveProcesses();
-    }, 3000);
+    }, 5000); // Increased from 3s to 5s to reduce API pressure
   }
 
   stopPolling() {
     if (this._pollInterval) {
       clearInterval(this._pollInterval);
       this._pollInterval = null;
+    }
+  }
+
+  // =============================================
+  // Rate Limiting Management
+  // =============================================
+
+  handleRateLimit() {
+    if (this.isRateLimited) return; // Already handling rate limit
+
+    this.isRateLimited = true;
+    console.log(`[Temporal] Rate limited, backing off for ${this.rateLimitBackoffMs}ms`);
+
+    // Stop polling temporarily
+    this.stopPolling();
+
+    // Clear any existing timeout
+    if (this.rateLimitTimeout) {
+      clearTimeout(this.rateLimitTimeout);
+    }
+
+    // Set timeout to retry with exponential backoff
+    this.rateLimitTimeout = setTimeout(() => {
+      this.isRateLimited = false;
+      console.log('[Temporal] Rate limit backoff complete, resuming polling');
+
+      // Resume polling with slower interval initially
+      this.startPolling();
+
+      // Exponential backoff (double the delay, up to max)
+      this.rateLimitBackoffMs = Math.min(this.rateLimitBackoffMs * 2, this.maxBackoffMs);
+    }, this.rateLimitBackoffMs);
+  }
+
+  resetRateLimit() {
+    this.isRateLimited = false;
+    this.rateLimitBackoffMs = 1000; // Reset to initial delay
+    if (this.rateLimitTimeout) {
+      clearTimeout(this.rateLimitTimeout);
+      this.rateLimitTimeout = null;
     }
   }
 
@@ -745,6 +806,13 @@ export class TemporalReactiveState {
   cleanup() {
     this.disconnectStream();
     this.stopPolling();
+
+    // Clear rate limit timeout
+    if (this.rateLimitTimeout) {
+      clearTimeout(this.rateLimitTimeout);
+      this.rateLimitTimeout = null;
+    }
+    this.resetRateLimit();
   }
 }
 
