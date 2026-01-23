@@ -141,7 +141,24 @@ result = await agent.ainvoke({
           <h3>API Keys</h3>
           <span class="badge badge-primary">Recommended</span>
         </div>
-        <p>Generate API keys from your workspace settings. Keys are scoped to specific permissions and rate limits.</p>
+        <p>Generate API keys from your workspace's Integration Hub. Keys are scoped to specific permissions and rate limits.</p>
+
+        <div class="key-generation-steps">
+          <h4>How to Generate an API Key</h4>
+          <ol>
+            <li>Go to <a href="https://dash.selify.ai" target="_blank" rel="noopener">dash.selify.ai</a> and sign in</li>
+            <li>Navigate to <strong>Organization → Integrations</strong></li>
+            <li>Click <strong>"Connect Integration"</strong> to open the Integration Hub</li>
+            <li>Select <strong>"MCP (AI Agents)"</strong> from the AI & Agents category</li>
+            <li>Enter a name for your key (e.g., "Claude Desktop", "My GPT")</li>
+            <li>Select the scopes your agent needs access to</li>
+            <li>Click <strong>"Generate API Key"</strong> and copy it immediately</li>
+          </ol>
+          <p class="warning-note">
+            <AlertTriangle size={14} />
+            The API key is only shown once. Store it securely!
+          </p>
+        </div>
 
         <div class="code-block">
           <div class="code-header">
@@ -179,6 +196,29 @@ result = await agent.ainvoke({
     </div>
   </section>
 
+  <section class="scopes-section">
+    <h2 class="section-header">Available Scopes</h2>
+
+    <div class="scopes-grid">
+      <div class="scope-card">
+        <code class="scope-name">workspace:read</code>
+        <p>Read workspace information, brand context, and basic stats</p>
+      </div>
+      <div class="scope-card">
+        <code class="scope-name">products:search</code>
+        <p>Search and discover products using AI-powered semantic search</p>
+      </div>
+      <div class="scope-card">
+        <code class="scope-name">knowledge:search</code>
+        <p>Search the brand's knowledge base for FAQs, policies, and content</p>
+      </div>
+      <div class="scope-card">
+        <code class="scope-name">orders:read</code>
+        <p>View order history and transaction data</p>
+      </div>
+    </div>
+  </section>
+
   <section class="tools-section">
     <h2 class="section-header">Available Tools</h2>
 
@@ -208,7 +248,7 @@ result = await agent.ainvoke({
           <tr>
             <td><code>get_product_details</code></td>
             <td>Full product with variants and pricing</td>
-            <td><span class="scope-badge">products:read</span></td>
+            <td><span class="scope-badge">products:search</span></td>
             <td>100 <span class="micro">micro</span></td>
           </tr>
           <tr>
@@ -616,6 +656,34 @@ result = await agent.ainvoke({
     @apply text-sm text-base05 font-mono;
   }
 
+  .key-generation-steps {
+    @apply mb-4 p-4 bg-base00 rounded-lg border border-base02;
+  }
+
+  .key-generation-steps h4 {
+    @apply text-sm text-base05 font-medium mb-3;
+  }
+
+  .key-generation-steps ol {
+    @apply text-sm text-base04 space-y-2 list-decimal list-inside mb-3;
+  }
+
+  .key-generation-steps li {
+    @apply leading-relaxed;
+  }
+
+  .key-generation-steps a {
+    @apply text-base0D hover:underline;
+  }
+
+  .key-generation-steps strong {
+    @apply text-base05;
+  }
+
+  .warning-note {
+    @apply flex items-center gap-2 text-xs text-base0A bg-base0A/10 px-3 py-2 rounded mt-3;
+  }
+
   .key-format {
     @apply mt-4 pt-4 border-t border-base02;
   }
@@ -634,6 +702,26 @@ result = await agent.ainvoke({
 
   .key-format code {
     @apply text-base0D;
+  }
+
+  .scopes-section {
+    @apply mb-10;
+  }
+
+  .scopes-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  }
+
+  .scope-card {
+    @apply bg-base01 border border-base02 rounded-lg p-4;
+  }
+
+  .scope-name {
+    @apply text-sm bg-base0E/20 text-base0E px-2 py-1 rounded mb-2 inline-block;
+  }
+
+  .scope-card p {
+    @apply text-sm text-base04 mt-2;
   }
 
   .tools-section {

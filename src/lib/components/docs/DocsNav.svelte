@@ -1,6 +1,6 @@
 <script>
   import {page} from '$app/stores';
-  import {Book, Database, Route, FileText, Home, Search, Code, ExternalLink, Blocks, BookOpen, Terminal, Zap, Cpu, Shield} from '@lucide/svelte';
+  import {Book, Database, Route, FileText, Home, Search, Code, ExternalLink, Blocks, BookOpen, Terminal, Zap, Cpu, Shield, FlaskConical, TestTube2, Cog, AlertTriangle} from '@lucide/svelte';
 
   // Navigation structure with internal/external separation
   const navItems = [
@@ -13,7 +13,10 @@
       title: 'External (Customers)',
       badge: 'external',
       items: [
-        {title: 'MCP API', href: '/docs/mcp', icon: Cpu, isNew: true},
+        {title: 'MCP Overview', href: '/docs/mcp', icon: Cpu, isNew: true},
+        {title: '↳ Claude Desktop', href: '/docs/mcp/claude-desktop', icon: Terminal},
+        {title: '↳ OpenAI GPTs', href: '/docs/mcp/openai', icon: Zap},
+        {title: '↳ REST API', href: '/docs/mcp/rest-api', icon: Code},
         {title: 'API Reference', href: '/docs/api', icon: Terminal},
         {title: 'Public Schema', href: '/docs/generated/database/public-schema', icon: Database},
         {title: 'Component Library', href: '/docs/components', icon: Blocks},
@@ -27,6 +30,16 @@
         {title: 'API Routes (All)', href: '/docs/generated/api/routes', icon: Route},
         {title: 'Backend Guides', href: '/docs/guides', icon: BookOpen},
         {title: 'Workflows', href: '/docs/workflows', icon: Zap},
+      ]
+    },
+    {
+      title: 'QA Automation',
+      badge: 'qa',
+      items: [
+        {title: 'Overview', href: '/docs/qa', icon: FlaskConical, isNew: true},
+        {title: 'QA Engineer Guide', href: '/docs/qa/guide', icon: TestTube2},
+        {title: 'Architecture', href: '/docs/qa/architecture', icon: Cog},
+        {title: 'Troubleshooting', href: '/docs/qa/troubleshooting', icon: AlertTriangle},
       ]
     }
   ];
@@ -162,6 +175,10 @@
 
   .section-badge.internal {
     @apply bg-base0A/20 text-base0A;
+  }
+
+  .section-badge.qa {
+    @apply bg-base0E/20 text-base0E;
   }
 
   .nav-link-text {
