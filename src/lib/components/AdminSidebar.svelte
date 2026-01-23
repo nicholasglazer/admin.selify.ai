@@ -25,7 +25,8 @@
     CheckCircle,
     Mail,
     Activity,
-    BookOpen
+    BookOpen,
+    Eye
   } from './icons';
   import EnvironmentSwitcher from './EnvironmentSwitcher.svelte';
 
@@ -56,6 +57,7 @@
       {label: 'Logs', href: '/logs', icon: Terminal, show: hasCap('ops.logs.view')},
       {label: 'Metrics', href: '/metrics', icon: BarChart, show: hasCap('ops.metrics.view')},
       {label: 'Database', href: '/database', icon: Database, show: hasCap('ops.metrics.view')},
+      {label: 'Observability', href: '/observability', icon: Eye, show: hasCap('ops.logs.view') || hasCap('ops.metrics.view')},
       {label: 'Docs', href: '/docs', icon: BookOpen, show: true}
     ];
   });

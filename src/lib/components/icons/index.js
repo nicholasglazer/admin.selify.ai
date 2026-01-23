@@ -59,3 +59,6 @@ export {default as BookOpen} from './BookOpen.svelte';
 
 // Environment Switcher Icons
 export {default as FlaskConical} from './FlaskConical.svelte';
+
+// Observability Icons
+export {default as Eye} from './Eye.svelte';
