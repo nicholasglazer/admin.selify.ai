@@ -7,15 +7,12 @@ export default {
   },
   kit: {
     prerender: {
-      entries: [
-        '/docs',
-        '/docs/generated/database/public-schema',
-        '/docs/generated/api/routes'
-      ],
+      // Only prerender docs - all other routes require authentication
+      entries: ['/docs'],
       handleHttpError: ({path, referrer, message}) => {
-        // Ignore 404s for docs pages that may not exist yet
-        if (path.startsWith('/docs/')) {
-          console.warn(`Warning: ${path} - ${message}`);
+        // Ignore 404s for docs pages and static assets that may not exist
+        if (path.startsWith('/docs/') || path.includes('favicon')) {
+          console.warn(`[Prerender] Warning: ${path} - ${message}`);
           return;
         }
         throw new Error(message);

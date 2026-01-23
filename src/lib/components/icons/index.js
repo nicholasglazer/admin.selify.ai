@@ -53,3 +53,6 @@ export {default as TriangleAlert} from './TriangleAlert.svelte';
 export {default as ExternalLink} from './ExternalLink.svelte';
 export {default as ArrowLeft} from './ArrowLeft.svelte';
 export {default as GitBranch} from './GitBranch.svelte';
+
+// Documentation Icons
+export {default as BookOpen} from './BookOpen.svelte';

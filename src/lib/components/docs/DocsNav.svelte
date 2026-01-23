@@ -1,8 +1,8 @@
 <script>
   import {page} from '$app/stores';
-  import {Book, Database, Route, FileText, Home, Search} from '@lucide/svelte';
+  import {Book, Database, Route, FileText, Home, Search, Code, ExternalLink, Blocks, BookOpen, Terminal, Zap, Cpu, Shield} from '@lucide/svelte';
 
-  // Navigation structure
+  // Navigation structure with internal/external separation
   const navItems = [
     {
       title: 'Overview',
@@ -10,11 +10,23 @@
       icon: Home
     },
     {
-      title: 'Generated',
+      title: 'External (Customers)',
+      badge: 'external',
       items: [
+        {title: 'MCP API', href: '/docs/mcp', icon: Cpu, isNew: true},
+        {title: 'API Reference', href: '/docs/api', icon: Terminal},
         {title: 'Public Schema', href: '/docs/generated/database/public-schema', icon: Database},
+        {title: 'Component Library', href: '/docs/components', icon: Blocks},
+      ]
+    },
+    {
+      title: 'Internal (Ops)',
+      badge: 'internal',
+      items: [
         {title: 'Internal Schema', href: '/docs/generated/database/internal-schema', icon: Database},
-        {title: 'API Routes', href: '/docs/generated/api/routes', icon: Route},
+        {title: 'API Routes (All)', href: '/docs/generated/api/routes', icon: Route},
+        {title: 'Backend Guides', href: '/docs/guides', icon: BookOpen},
+        {title: 'Workflows', href: '/docs/workflows', icon: Zap},
       ]
     }
   ];
@@ -55,7 +67,14 @@
         </a>
       {:else}
         <div class="nav-section">
-          <h3 class="section-title">{section.title}</h3>
+          <h3 class="section-title">
+            {section.title}
+            {#if section.badge}
+              <span class="section-badge" class:external={section.badge === 'external'} class:internal={section.badge === 'internal'}>
+                {section.badge}
+              </span>
+            {/if}
+          </h3>
           <ul class="section-links">
             {#each section.items as item}
               <li>
@@ -63,11 +82,19 @@
                   href={item.href}
                   class="nav-link"
                   class:active={$page.url.pathname === item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
                 >
                   {#if item.icon}
                     <svelte:component this={item.icon} size={14} />
                   {/if}
-                  {item.title}
+                  <span class="nav-link-text">{item.title}</span>
+                  {#if item.isNew}
+                    <span class="new-badge">new</span>
+                  {/if}
+                  {#if item.external}
+                    <ExternalLink size={12} class="external-icon" />
+                  {/if}
                 </a>
               </li>
             {/each}
@@ -122,7 +149,27 @@
   }
 
   .section-title {
-    @apply text-xs uppercase tracking-wider text-base04 font-medium mb-2 px-2;
+    @apply text-xs uppercase tracking-wider text-base04 font-medium mb-2 px-2 flex items-center gap-2;
+  }
+
+  .section-badge {
+    @apply text-[10px] px-1.5 py-0.5 rounded font-medium uppercase;
+  }
+
+  .section-badge.external {
+    @apply bg-base0B/20 text-base0B;
+  }
+
+  .section-badge.internal {
+    @apply bg-base0A/20 text-base0A;
+  }
+
+  .nav-link-text {
+    @apply flex-1;
+  }
+
+  :global(.external-icon) {
+    @apply text-base04 opacity-60;
   }
 
   .section-links {
@@ -136,6 +183,10 @@
 
   .nav-link.active {
     @apply bg-base02 text-base0D;
+  }
+
+  .new-badge {
+    @apply text-[10px] px-1.5 py-0.5 rounded bg-base0B/20 text-base0B font-medium uppercase;
   }
 
   .nav-footer {

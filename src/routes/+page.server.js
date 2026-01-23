@@ -1,5 +1,8 @@
 import {env} from '$env/dynamic/private';
 
+// Prevent prerendering - this route requires authentication
+export const prerender = false;
+
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({locals, parent, fetch}) => {
   const {capabilities} = await parent();

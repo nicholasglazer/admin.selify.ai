@@ -1,39 +1,67 @@
 <script>
-  import {Clock, RefreshCw, AlertCircle, Database, ChevronRight, Search, X} from '@lucide/svelte';
-  import {Badge, Tabs} from '@miozu/jera';
+  import {Clock, RefreshCw, AlertCircle, Database, ChevronRight, Search, X, Users, Shield, Filter} from '@lucide/svelte';
+  import {Badge} from '@miozu/jera';
 
   let {data} = $props();
 
   const workflowCmd = `temporal workflow start --type DocumentationWorkflow --input '{"generators": ["schema"]}'`;
 
-  // Extract table names from HTML for TOC
+  // Extract table names and classifications from HTML for TOC
+  // The HTML contains blockquotes with classification info after each h2
   let tableNames = $derived.by(() => {
     if (!data.html) return [];
-    const matches = data.html.matchAll(/<h2 id="([^"]+)">([^<]+)<\/h2>/g);
+    const matches = data.html.matchAll(/<h2 id="([^"]+)">([^<]+)<\/h2>\s*<blockquote>\s*<p><strong>Usage:<\/strong>\s*<code>([^<]+)<\/code>\s*·\s*<strong>Audience:<\/strong>\s*<code>([^<]+)<\/code>\s*·\s*<strong>Domain:<\/strong>\s*<code>([^<]+)<\/code>/g);
     return Array.from(matches).map(m => ({
       id: m[1],
-      name: m[2]
+      name: m[2],
+      usage: m[3],
+      audience: m[4],
+      domain: m[5]
     }));
   });
 
   // Search functionality for TOC
   let searchQuery = $state('');
-  let filteredTables = $derived(
-    searchQuery
-      ? tableNames.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      : tableNames
-  );
+
+  // Audience filter
+  let audienceFilter = $state('all'); // all, external, internal
+
+  // Usage filter
+  let usageFilter = $state('all'); // all, frontend, backend, both
+
+  // Filtered tables based on search and filters
+  let filteredTables = $derived.by(() => {
+    let result = tableNames;
+
+    // Apply search filter
+    if (searchQuery) {
+      result = result.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+
+    // Apply audience filter
+    if (audienceFilter !== 'all') {
+      result = result.filter(t => t.audience === audienceFilter);
+    }
+
+    // Apply usage filter
+    if (usageFilter !== 'all') {
+      result = result.filter(t => t.usage === usageFilter);
+    }
+
+    return result;
+  });
+
+  // Stats
+  let stats = $derived({
+    total: tableNames.length,
+    external: tableNames.filter(t => t.audience === 'external').length,
+    internal: tableNames.filter(t => t.audience === 'internal').length,
+    frontend: tableNames.filter(t => t.usage === 'frontend').length,
+    backend: tableNames.filter(t => t.usage === 'backend').length
+  });
 
   // Active section tracking
   let activeSection = $state('');
-
-  // View mode
-  let viewMode = $state('all');
-  const viewTabs = [
-    {id: 'all', label: 'All Tables'},
-    {id: 'rls', label: 'With RLS'},
-    {id: 'no-rls', label: 'No RLS'}
-  ];
 
   function scrollToTable(id) {
     const el = document.getElementById(id);
@@ -45,6 +73,16 @@
 
   function clearSearch() {
     searchQuery = '';
+  }
+
+  function resetFilters() {
+    audienceFilter = 'all';
+    usageFilter = 'all';
+    searchQuery = '';
+  }
+
+  function getAudienceBadge(audience) {
+    return audience === 'external' ? 'success' : 'warning';
   }
 </script>
 
@@ -67,7 +105,7 @@
       <div class="toc-header">
         <Database size={16} />
         <span class="toc-title">Tables</span>
-        <Badge variant="secondary" size="sm">{tableNames.length}</Badge>
+        <Badge variant="secondary" size="sm">{filteredTables.length}/{tableNames.length}</Badge>
       </div>
 
       <div class="toc-search">
@@ -84,6 +122,75 @@
         {/if}
       </div>
 
+      <!-- Audience Filter -->
+      <div class="filter-section">
+        <div class="filter-label">
+          <Users size={12} />
+          Audience
+        </div>
+        <div class="filter-buttons">
+          <button
+            class="filter-btn"
+            class:active={audienceFilter === 'all'}
+            onclick={() => audienceFilter = 'all'}
+          >
+            All
+          </button>
+          <button
+            class="filter-btn external"
+            class:active={audienceFilter === 'external'}
+            onclick={() => audienceFilter = 'external'}
+          >
+            External ({stats.external})
+          </button>
+          <button
+            class="filter-btn internal"
+            class:active={audienceFilter === 'internal'}
+            onclick={() => audienceFilter = 'internal'}
+          >
+            Internal ({stats.internal})
+          </button>
+        </div>
+      </div>
+
+      <!-- Usage Filter -->
+      <div class="filter-section">
+        <div class="filter-label">
+          <Shield size={12} />
+          Usage
+        </div>
+        <div class="filter-buttons">
+          <button
+            class="filter-btn"
+            class:active={usageFilter === 'all'}
+            onclick={() => usageFilter = 'all'}
+          >
+            All
+          </button>
+          <button
+            class="filter-btn"
+            class:active={usageFilter === 'frontend'}
+            onclick={() => usageFilter = 'frontend'}
+          >
+            Frontend
+          </button>
+          <button
+            class="filter-btn"
+            class:active={usageFilter === 'backend'}
+            onclick={() => usageFilter = 'backend'}
+          >
+            Backend
+          </button>
+        </div>
+      </div>
+
+      {#if audienceFilter !== 'all' || usageFilter !== 'all' || searchQuery}
+        <button class="reset-filters" onclick={resetFilters}>
+          <X size={12} />
+          Reset filters
+        </button>
+      {/if}
+
       <nav class="toc-list">
         {#each filteredTables as table (table.id)}
           <button
@@ -92,11 +199,14 @@
             onclick={() => scrollToTable(table.id)}
           >
             <ChevronRight size={12} />
-            <span>{table.name}</span>
+            <span class="table-name">{table.name}</span>
+            <span class="table-badge {table.audience}">
+              {table.audience === 'external' ? 'E' : 'I'}
+            </span>
           </button>
         {/each}
         {#if filteredTables.length === 0}
-          <p class="no-results">No tables match "{searchQuery}"</p>
+          <p class="no-results">No tables match filters</p>
         {/if}
       </nav>
     </aside>
@@ -179,6 +289,43 @@
     @apply transition-colors;
   }
 
+  /* Filter Sections */
+  .filter-section {
+    @apply px-3 py-2 border-b border-base02;
+  }
+
+  .filter-label {
+    @apply flex items-center gap-1.5 text-xs text-base04 mb-2;
+  }
+
+  .filter-buttons {
+    @apply flex gap-1 flex-wrap;
+  }
+
+  .filter-btn {
+    @apply px-2 py-1 rounded text-xs text-base04;
+    @apply bg-base00 border border-base02;
+    @apply hover:border-base04 transition-colors;
+  }
+
+  .filter-btn.active {
+    @apply bg-base0D/20 border-base0D text-base0D;
+  }
+
+  .filter-btn.external.active {
+    @apply bg-base0B/20 border-base0B text-base0B;
+  }
+
+  .filter-btn.internal.active {
+    @apply bg-base0A/20 border-base0A text-base0A;
+  }
+
+  .reset-filters {
+    @apply flex items-center gap-1.5 mx-3 my-2 px-2 py-1 rounded;
+    @apply text-xs text-base08 bg-base08/10;
+    @apply hover:bg-base08/20 transition-colors;
+  }
+
   .toc-list {
     @apply flex-1 overflow-y-auto px-3 py-2;
   }
@@ -194,8 +341,20 @@
     @apply bg-base0D/15 text-base0D;
   }
 
-  .toc-item span {
-    @apply truncate;
+  .table-name {
+    @apply flex-1 truncate;
+  }
+
+  .table-badge {
+    @apply w-4 h-4 rounded text-[10px] font-medium flex items-center justify-center flex-shrink-0;
+  }
+
+  .table-badge.external {
+    @apply bg-base0B/20 text-base0B;
+  }
+
+  .table-badge.internal {
+    @apply bg-base0A/20 text-base0A;
   }
 
   .no-results {

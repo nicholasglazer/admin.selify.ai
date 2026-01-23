@@ -2,6 +2,7 @@ import {createServerClient} from '@supabase/ssr';
 import {env as publicEnv} from '$env/dynamic/public';
 import {env} from '$env/dynamic/private';
 import {redirect} from '@sveltejs/kit';
+import {building} from '$app/environment';
 
 /**
  * Handle server-side errors
@@ -22,6 +23,11 @@ export const handleError = async ({error, event, status, message}) => {
 };
 
 export const handle = async ({event, resolve}) => {
+  // ==========================================================================
+  // SSO Debug Logging
+  // ==========================================================================
+  console.log('[Admin SSO] PUBLIC_SUPABASE_URL:', publicEnv.PUBLIC_SUPABASE_URL);
+
   // ==========================================================================
   // Subdomain Routing
   // webmail.selify.ai -> /webmail routes (internal rewrite, URL stays clean)
@@ -56,46 +62,17 @@ export const handle = async ({event, resolve}) => {
     event.locals.supabase = createServerClient(publicEnv.PUBLIC_SUPABASE_URL, publicEnv.PUBLIC_SUPABASE_ANON_KEY, {
       cookies: {
         getAll: () => {
-          // Handle duplicate auth cookies by preferring the one with latest expiry
+          // SIMPLIFIED: Just return all cookies without filtering
+          // Let Supabase handle finding the right auth cookies
           const allCookies = event.cookies.getAll();
-          const authCookies = new Map(); // name -> {cookie, expiresAt}
-          const otherCookies = [];
-
-          for (const cookie of allCookies) {
-            if (cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')) {
-              // Parse the token to get expiry
-              let expiresAt = 0;
-              try {
-                if (cookie.value.startsWith('base64-')) {
-                  const jsonStr = Buffer.from(cookie.value.slice(7), 'base64').toString('utf-8');
-                  const parsed = JSON.parse(jsonStr);
-                  expiresAt = parsed.expires_at || 0;
-                }
-              } catch {
-                // If parsing fails, use 0 (will be replaced by any valid token)
-              }
-
-              const existing = authCookies.get(cookie.name);
-              if (!existing || expiresAt > existing.expiresAt) {
-                authCookies.set(cookie.name, {cookie, expiresAt});
-              }
-            } else {
-              otherCookies.push(cookie);
-            }
-          }
-
-          // Return other cookies + best auth cookie for each name
-          const result = [...otherCookies];
-          for (const {cookie} of authCookies.values()) {
-            result.push(cookie);
-          }
-          return result;
+          console.log('[Admin SSO] getAll() returning', allCookies.length, 'cookies:', allCookies.map(c => c.name).join(', '));
+          return allCookies;
         },
         setAll: () => {
           // INTENTIONALLY EMPTY - Admin is READ-ONLY for cookies
           // dash.selify.ai is the auth source and manages all cookie writes
           // If we write here, we risk invalidating the user's session everywhere
-          console.log('[Admin] Cookie write requested but blocked (read-only mode)');
+          console.log('[Admin SSO] Cookie write requested but blocked (read-only mode)');
         }
       }
     });
@@ -108,7 +85,13 @@ export const handle = async ({event, resolve}) => {
    * Get session - simplified to avoid triggering session invalidation
    */
   event.locals.safeGetSession = async () => {
+    // SSO Debug: Log cookies being received
+    const allCookies = event.cookies.getAll();
+    const sbCookies = allCookies.filter(c => c.name.startsWith('sb-'));
+    console.log('[Admin SSO] Auth cookies received:', sbCookies.map(c => c.name).join(', ') || 'NONE');
+
     if (!event.locals.supabase) {
+      console.log('[Admin SSO] Supabase client not available');
       return {session: null, user: null};
     }
 
@@ -118,12 +101,14 @@ export const handle = async ({event, resolve}) => {
       } = await event.locals.supabase.auth.getSession();
 
       if (!session) {
+        console.log('[Admin SSO] getSession() returned null - check cookie name matches');
         return {session: null, user: null};
       }
 
+      console.log('[Admin SSO] Session found for user:', session.user?.email);
       return {session, user: session.user};
     } catch (e) {
-      console.error('[Admin] Failed to get session:', e?.message);
+      console.error('[Admin SSO] Failed to get session:', e?.message);
       return {session: null, user: null};
     }
   };
@@ -135,11 +120,16 @@ export const handle = async ({event, resolve}) => {
 
   // Auth protection for all routes except /auth/*, /api/*, and /docs/*
   const pathname = event.url.pathname;
+
+  // Debug logging for root route
+  console.log('[Admin SSO] Path:', pathname, '| User:', user?.email || 'NULL', '| Session:', !!session);
   const isAuthRoute = pathname.startsWith('/auth');
   const isApiRoute = pathname.startsWith('/api');
   const isDocsRoute = pathname.startsWith('/docs');
 
-  if (!isAuthRoute && !isApiRoute && !isDocsRoute && !user) {
+  // Skip auth redirect during build/prerender - no cookies available during build
+  // This prevents prerendered redirects from being baked into _redirects file
+  if (!building && !isAuthRoute && !isApiRoute && !isDocsRoute && !user) {
     // Redirect to dash.selify.ai auth page with proper return_to
     const returnTo = isWebmailSubdomain
       ? 'https://webmail.selify.ai/'

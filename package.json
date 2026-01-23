@@ -37,7 +37,8 @@
     "svelte": "^5.43.12",
     "tailwindcss": "4.1.17",
     "tslib": "^2.8.1",
-    "vite": "^7.2.2"
+    "vite": "^7.2.2",
+    "ws": "^8.19.0"
   },
   "type": "module",
   "volta": {
@@ -52,9 +53,11 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.1",
     "imapflow": "^1.2.6",
+    "js-yaml": "^4.1.1",
     "mailparser": "^3.9.1",
     "marked": "^15.0.12",
     "nodemailer": "^7.0.12",
+    "shiki": "^3.21.0",
     "wrangler": "^4.49.0"
   }
 }

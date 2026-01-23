@@ -114,6 +114,8 @@ export class TemporalReactiveState {
 
   apiBaseUrl = null;
   showToast = null;
+  supabaseClient = null;
+  realtimeChannel = null;
 
   // =============================================
   // Constructor
@@ -122,6 +124,7 @@ export class TemporalReactiveState {
   constructor(initialData = {}) {
     this.apiBaseUrl = initialData.apiBaseUrl || 'https://api.selify.ai';
     this.showToast = initialData.showToast || null;
+    this.supabaseClient = initialData.supabaseClient || null;
 
     // Restore tracker state from localStorage
     if (typeof localStorage !== 'undefined') {
@@ -258,35 +261,39 @@ export class TemporalReactiveState {
   }
 
   async fetchActiveProcesses() {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/api/temporal/workflows/active`, {
-        credentials: 'include'
-      });
+    // Use database RPC instead of polling API
+    if (!this.supabaseClient) {
+      console.warn('No Supabase client available for Temporal workflow tracking');
+      return;
+    }
 
-      if (!response.ok) {
-        // Handle rate limiting with exponential backoff
-        if (response.status === 429) {
-          this.handleRateLimit();
-          return;
-        }
-        throw new Error(`Failed to fetch active processes: ${response.status}`);
+    try {
+      const { data, error } = await this.supabaseClient
+        .rpc('get_active_temporal_workflows');
+
+      if (error) {
+        console.error('Failed to fetch active workflows from database:', error);
+        return;
       }
 
-      const data = await response.json();
-      this.activeProcesses = data.processes || [];
-
-      // Reset rate limit state on successful fetch
-      this.resetRateLimit();
+      // Transform database format to expected format
+      this.activeProcesses = (data || []).map(workflow => ({
+        id: workflow.workflow_id,
+        type: workflow.workflow_type,
+        friendly_name: workflow.friendly_name || this.getWorkflowTypeConfig(workflow.workflow_type).shortName,
+        status: 'RUNNING',
+        progress: workflow.progress_percentage || 0,
+        current_step: workflow.current_step,
+        start_time: workflow.started_at,
+        duration_ms: workflow.duration_ms || 0
+      }));
 
       // Show tracker if we have active processes
       if (this.activeProcesses.length > 0) {
         this.trackerVisible = true;
       }
     } catch (err) {
-      // Only log errors that aren't rate limit related
-      if (!err.message.includes('429')) {
-        console.error('Failed to fetch active processes:', err);
-      }
+      console.error('Failed to fetch active processes from database:', err);
     }
   }
 
@@ -520,92 +527,120 @@ export class TemporalReactiveState {
   // SSE Stream Management
   // =============================================
 
-  connectToActiveStream() {
-    if (this.eventSource) {
-      this.disconnectStream();
-    }
-
-    if (typeof EventSource === 'undefined') {
-      console.warn('EventSource not supported');
+  connectToRealtimeWorkflows() {
+    if (!this.supabaseClient) {
+      console.warn('No Supabase client available for real-time workflow tracking');
       return;
     }
 
+    // Disconnect existing channel
+    this.disconnectRealtime();
+
     try {
-      this.eventSource = new EventSource(`${this.apiBaseUrl}/api/temporal/workflows/stream`, {
-        withCredentials: true
-      });
+      // Subscribe to database changes for temporal workflows
+      this.realtimeChannel = this.supabaseClient
+        .channel('temporal-workflow-updates')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'temporal_workflows',
+          filter: 'status=eq.RUNNING'
+        }, (payload) => {
+          this.handleWorkflowRealtimeUpdate(payload);
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'temporal_workflows',
+          filter: 'status=neq.RUNNING'
+        }, (payload) => {
+          this.handleWorkflowCompletion(payload);
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[Temporal] Real-time subscribed to workflow updates');
+            this.reconnectAttempts = 0;
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('[Temporal] Real-time channel error');
+            this.handleStreamError();
+          }
+        });
 
-      this.eventSource.onopen = () => {
-        console.log('[Temporal] SSE connected');
-        this.reconnectAttempts = 0;
-      };
-
-      this.eventSource.onerror = (error) => {
-        console.error('[Temporal] SSE error:', error);
-        this.handleStreamError();
-      };
-
-      // Listen for workflow events
-      this.eventSource.addEventListener('message', (event) => {
-        // Default message event (shouldn't happen, but handle gracefully)
-        console.log('[Temporal] SSE message:', event.data);
-      });
-
-      // Set up wildcard-style listener by overriding onmessage
-      // for events that start with 'workflow:'
-      const originalOnMessage = this.eventSource.onmessage;
-      this.eventSource.onmessage = (event) => {
-        if (originalOnMessage) originalOnMessage.call(this.eventSource, event);
-      };
-
-      // Poll for new event types (SSE limitation - can't do wildcards)
-      // Instead, we set up a general handler
-      this.setupStreamEventHandlers();
-    } catch (err) {
-      console.error('Failed to connect to SSE stream:', err);
-    }
-  }
-
-  setupStreamEventHandlers() {
-    if (!this.eventSource) return;
-
-    // Listen for error events
-    this.eventSource.addEventListener('error', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.error('[Temporal] Stream error event:', data);
-      } catch (e) {
-        console.error('[Temporal] Stream error (unparseable):', event.data);
-      }
-    });
-
-    // Since we can't use wildcards, we need to listen to all known workflow IDs
-    // and also poll for updates periodically
-    // Alternative: use a single 'update' event type from the server
-
-    // For now, use polling + SSE hybrid approach
-    this.startPolling();
-  }
-
-  startPolling() {
-    // Poll for active processes every 5 seconds as backup (reduced from 3s to be less aggressive)
-    if (this._pollInterval) {
-      clearInterval(this._pollInterval);
-    }
-
-    this._pollInterval = setInterval(() => {
-      // Don't poll if we're rate limited
-      if (this.isRateLimited) {
-        return;
-      }
+      // Initial fetch
       this.fetchActiveProcesses();
-    }, 5000); // Increased from 3s to 5s to reduce API pressure
+    } catch (err) {
+      console.error('Failed to connect to real-time workflow updates:', err);
+    }
   }
 
-  stopPolling() {
-    if (this._pollInterval) {
-      clearInterval(this._pollInterval);
-      this._pollInterval = null;
+  handleWorkflowRealtimeUpdate(payload) {
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+
+    if (!newRecord) return;
+
+    const workflowData = {
+      id: newRecord.workflow_id,
+      type: newRecord.workflow_type,
+      friendly_name: newRecord.friendly_name || this.getWorkflowTypeConfig(newRecord.workflow_type).shortName,
+      status: newRecord.status,
+      progress: newRecord.progress_percentage || 0,
+      current_step: newRecord.current_step,
+      start_time: newRecord.started_at,
+      duration_ms: newRecord.duration_ms || 0
+    };
+
+    if (eventType === 'INSERT') {
+      // New workflow started
+      console.log('[Temporal] New workflow started:', workflowData.id);
+      this.activeProcesses = [...this.activeProcesses, workflowData];
+      this.trackerVisible = true;
+    } else if (eventType === 'UPDATE') {
+      // Workflow status/progress updated
+      const index = this.activeProcesses.findIndex(p => p.id === workflowData.id);
+      if (index !== -1) {
+        this.activeProcesses[index] = workflowData;
+        this.activeProcesses = [...this.activeProcesses]; // Trigger reactivity
+      }
+    }
+  }
+
+  handleWorkflowCompletion(payload) {
+    const { new: newRecord } = payload;
+    if (!newRecord) return;
+
+    const workflowId = newRecord.workflow_id;
+    console.log('[Temporal] Workflow completed:', workflowId, newRecord.status);
+
+    // Remove from active processes
+    this.activeProcesses = this.activeProcesses.filter(p => p.id !== workflowId);
+
+    // Track recently completed for visual effects
+    if (newRecord.status === 'COMPLETED') {
+      this.recentlyCompleted.set(workflowId, Date.now());
+      setTimeout(() => {
+        this.recentlyCompleted.delete(workflowId);
+        this.recentlyCompleted = new Map(this.recentlyCompleted);
+      }, 5000);
+    }
+
+    // Show completion toast if available
+    if (this.showToast) {
+      const status = newRecord.status;
+      const isSuccess = status === 'COMPLETED';
+      this.showToast({
+        title: isSuccess ? 'Workflow Completed' : 'Workflow Failed',
+        message: `${newRecord.friendly_name || 'Workflow'} ${status.toLowerCase()}`,
+        type: isSuccess ? 'success' : 'error',
+        duration: 3000
+      });
+    }
+  }
+
+  disconnectRealtime() {
+    if (this.realtimeChannel) {
+      this.supabaseClient?.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = null;
+      console.log('[Temporal] Disconnected from real-time workflow updates');
     }
   }
 
@@ -666,11 +701,13 @@ export class TemporalReactiveState {
   }
 
   disconnectStream() {
+    // Legacy SSE cleanup (if still in use)
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
     }
-    this.stopPolling();
+    // Disconnect real-time subscriptions
+    this.disconnectRealtime();
   }
 
   // =============================================
@@ -805,9 +842,9 @@ export class TemporalReactiveState {
 
   cleanup() {
     this.disconnectStream();
-    this.stopPolling();
+    this.disconnectRealtime();
 
-    // Clear rate limit timeout
+    // Clear rate limit timeout (legacy, but keep for compatibility)
     if (this.rateLimitTimeout) {
       clearTimeout(this.rateLimitTimeout);
       this.rateLimitTimeout = null;
@@ -837,6 +874,9 @@ export function getTemporalState(initialData = {}) {
     }
     if (initialData.showToast) {
       temporalState.showToast = initialData.showToast;
+    }
+    if (initialData.supabaseClient) {
+      temporalState.supabaseClient = initialData.supabaseClient;
     }
   }
   return temporalState;

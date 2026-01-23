@@ -1,6 +1,9 @@
 import {error} from '@sveltejs/kit';
 import {env} from '$env/dynamic/private';
 
+// Prevent prerendering - all routes require authentication
+export const prerender = false;
+
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async ({locals, cookies}) => {
   const {session, user, supabase} = locals;

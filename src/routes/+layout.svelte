@@ -32,13 +32,13 @@
       // Create internal schema proxy from the main client (shares session)
       supabaseHolder.internalClient = createInternalSchemaProxy(supabaseHolder.client);
 
-      // Only fetch active processes if user has temporal access
-      // Avoid unnecessary API calls on ops pages that don't need this
+      // Update temporal state with Supabase client for real-time subscriptions
+      temporalState.supabaseClient = supabaseHolder.client;
+
+      // Only connect to real-time workflow updates if user has temporal access
       if (data.capabilities?.includes('*') || data.capabilities?.includes('ops.temporal.view')) {
-        // Delay initial fetch to avoid competing with page-specific API calls
-        setTimeout(() => {
-          temporalState.fetchActiveProcesses();
-        }, 2000);
+        // Connect to real-time database notifications instead of polling
+        temporalState.connectToRealtimeWorkflows();
       }
     }
   });

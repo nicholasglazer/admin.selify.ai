@@ -24,7 +24,8 @@
     Database,
     CheckCircle,
     Mail,
-    Activity
+    Activity,
+    BookOpen
   } from './icons';
 
   let {teamMember, capabilities} = $props();
@@ -53,7 +54,8 @@
       {label: 'Errors', href: '/errors', icon: AlertCircle, show: hasCap('ops.errors.view')},
       {label: 'Logs', href: '/logs', icon: Terminal, show: hasCap('ops.logs.view')},
       {label: 'Metrics', href: '/metrics', icon: BarChart, show: hasCap('ops.metrics.view')},
-      {label: 'Database', href: '/database', icon: Database, show: hasCap('ops.metrics.view')}
+      {label: 'Database', href: '/database', icon: Database, show: hasCap('ops.metrics.view')},
+      {label: 'Docs', href: '/docs', icon: BookOpen, show: true}
     ];
   });
 

@@ -67,14 +67,13 @@
   let initiatedStream = false;
 
   onMount(() => {
-    // Connect to SSE stream when mounted
-    if (temporalState) {
-      temporalState.fetchActiveProcesses();
-      temporalState.connectToActiveStream();
+    // Connect to real-time stream when mounted (if not already connected from layout)
+    if (temporalState && !temporalState.realtimeChannel) {
+      temporalState.connectToRealtimeWorkflows();
       initiatedStream = true;
     }
 
-    // Update durations every second
+    // Update durations every second for UI display
     tickInterval = setInterval(() => {
       tick++;
     }, 1000);
@@ -87,12 +86,10 @@
       tickInterval = null;
     }
 
-    // Only disconnect the SSE stream if there are no active processes
-    // If there are active processes and we're navigating to /temporal,
-    // the temporal page will manage the connection
-    // If there are no active processes, we should clean up
+    // Only disconnect real-time subscriptions if we initiated them
+    // and there are no active processes
     if (initiatedStream && temporalState && !temporalState.hasActive) {
-      temporalState.disconnectStream();
+      temporalState.disconnectRealtime();
     }
   });
 </script>
