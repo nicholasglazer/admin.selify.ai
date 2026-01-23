@@ -3,7 +3,14 @@
   import {setContext, onMount, onDestroy} from 'svelte';
   import {browser} from '$app/environment';
   import {AdminSidebar, Toaster, ActivityTracker} from '$components';
-  import {getThemeState, getAdminState, getToastState, getTemporalState, resetTemporalState} from '$lib/reactiveStates';
+  import {
+    getThemeState,
+    getAdminState,
+    getToastState,
+    getTemporalState,
+    getEnvironmentState,
+    resetTemporalState
+  } from '$lib/reactiveStates';
 
   let {data, children} = $props();
 
@@ -15,6 +22,25 @@
     capabilities: data.capabilities
   });
   const toastState = getToastState();
+
+  // Initialize environment state from server data
+  const environmentState = getEnvironmentState({
+    production: data.environment?.production || {
+      supabaseUrl: '',
+      supabaseAnonKey: '',
+      apiBaseUrl: 'https://api.selify.ai',
+      label: 'Production',
+      color: 'base0B'
+    },
+    staging: data.environment?.staging || {
+      supabaseUrl: '',
+      supabaseAnonKey: '',
+      apiBaseUrl: 'https://staging-api.selify.ai',
+      label: 'Staging',
+      color: 'base0A'
+    },
+    initial: data.environment?.current || 'production'
+  });
 
   // Initialize temporal state for ActivityTracker (global workflow monitoring)
   const temporalState = getTemporalState({
@@ -53,11 +79,13 @@
   setContext('adminState', adminState);
   setContext('toastState', toastState);
   setContext('temporalState', temporalState);
+  setContext('environmentState', environmentState);
   setContext('supabase', supabaseHolder);
 
   // Derived values
   let teamMember = $derived(data.teamMember);
   let capabilities = $derived(data.capabilities);
+  let currentEnv = $derived(data.environment?.current || 'production');
 </script>
 
 <div class="admin-layout">

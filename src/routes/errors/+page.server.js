@@ -1,5 +1,4 @@
 import {error} from '@sveltejs/kit';
-import {env} from '$env/dynamic/private';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({locals, parent, fetch, url}) => {
@@ -10,7 +9,8 @@ export const load = async ({locals, parent, fetch, url}) => {
     throw error(403, {message: 'Access denied. Missing ops.errors.view capability.'});
   }
 
-  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
+  // Use environment-aware API base URL from hooks
+  const apiBaseUrl = locals.apiBaseUrl;
   const headers = {
     Authorization: `Bearer ${locals.session?.access_token}`,
     'Content-Type': 'application/json'

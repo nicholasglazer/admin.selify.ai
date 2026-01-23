@@ -1,5 +1,3 @@
-import {env} from '$env/dynamic/private';
-
 // Prevent prerendering - this route requires authentication
 export const prerender = false;
 
@@ -18,7 +16,8 @@ export const load = async ({locals, parent, fetch}) => {
     };
   }
 
-  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
+  // Use environment-aware API base URL from hooks
+  const apiBaseUrl = locals.apiBaseUrl;
   const headers = {
     Authorization: `Bearer ${locals.session?.access_token}`,
     'Content-Type': 'application/json'

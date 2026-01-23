@@ -4,6 +4,26 @@ import {env} from '$env/dynamic/private';
 import {redirect} from '@sveltejs/kit';
 import {building} from '$app/environment';
 
+// ==========================================================================
+// Environment Configuration
+// ==========================================================================
+const ENVIRONMENTS = {
+  production: {
+    supabaseUrl: publicEnv.PUBLIC_SUPABASE_URL,
+    supabaseAnonKey: publicEnv.PUBLIC_SUPABASE_ANON_KEY,
+    apiBaseUrl: env.API_BASE_URL || 'https://api.selify.ai',
+    label: 'Production',
+    color: 'base0B'
+  },
+  staging: {
+    supabaseUrl: env.STAGING_SUPABASE_URL || 'https://staging-sb.selify.ai',
+    supabaseAnonKey: env.STAGING_SUPABASE_ANON_KEY || publicEnv.PUBLIC_SUPABASE_ANON_KEY,
+    apiBaseUrl: env.STAGING_API_BASE_URL || 'https://staging-api.selify.ai',
+    label: 'Staging',
+    color: 'base0A'
+  }
+};
+
 /**
  * Handle server-side errors
  */
@@ -24,9 +44,21 @@ export const handleError = async ({error, event, status, message}) => {
 
 export const handle = async ({event, resolve}) => {
   // ==========================================================================
+  // Environment Selection (from cookie)
+  // ==========================================================================
+  const envCookie = event.cookies.get('admin-environment');
+  const currentEnv = envCookie === 'staging' ? 'staging' : 'production';
+  const envConfig = ENVIRONMENTS[currentEnv];
+
+  // Store environment info in locals
+  event.locals.currentEnvironment = currentEnv;
+  event.locals.environmentConfig = envConfig;
+  event.locals.environments = ENVIRONMENTS;
+
+  // ==========================================================================
   // SSO Debug Logging
   // ==========================================================================
-  console.log('[Admin SSO] PUBLIC_SUPABASE_URL:', publicEnv.PUBLIC_SUPABASE_URL);
+  console.log('[Admin SSO] Environment:', currentEnv, '| Supabase URL:', envConfig.supabaseUrl);
 
   // ==========================================================================
   // Subdomain Routing
@@ -51,15 +83,17 @@ export const handle = async ({event, resolve}) => {
     }
   }
 
-  // Attach API configuration
-  event.locals.apiBaseUrl = env.API_BASE_URL || publicEnv.PUBLIC_SUPABASE_URL;
-  event.locals.supabaseAnonKey = publicEnv.PUBLIC_SUPABASE_ANON_KEY;
+  // Attach API configuration for current environment
+  event.locals.apiBaseUrl = envConfig.apiBaseUrl;
+  event.locals.supabaseAnonKey = envConfig.supabaseAnonKey;
 
-  // Create Supabase client with READ-ONLY cookie configuration
+  // ==========================================================================
+  // Create Supabase Client for Current Environment
   // CRITICAL: Admin must NEVER write/clear cookies on .selify.ai domain
   // Only dash.selify.ai should manage auth cookies to prevent SSO invalidation
+  // ==========================================================================
   try {
-    event.locals.supabase = createServerClient(publicEnv.PUBLIC_SUPABASE_URL, publicEnv.PUBLIC_SUPABASE_ANON_KEY, {
+    event.locals.supabase = createServerClient(envConfig.supabaseUrl, envConfig.supabaseAnonKey, {
       cookies: {
         getAll: () => {
           // SIMPLIFIED: Just return all cookies without filtering
@@ -81,8 +115,31 @@ export const handle = async ({event, resolve}) => {
     event.locals.supabase = null;
   }
 
+  // ==========================================================================
+  // Create Production Supabase Client (Always needed for auth/team data)
+  // Team member data and auth always comes from production
+  // ==========================================================================
+  try {
+    event.locals.supabaseProduction = createServerClient(
+      ENVIRONMENTS.production.supabaseUrl,
+      ENVIRONMENTS.production.supabaseAnonKey,
+      {
+        cookies: {
+          getAll: () => event.cookies.getAll(),
+          setAll: () => {
+            // READ-ONLY
+          }
+        }
+      }
+    );
+  } catch (e) {
+    console.error('[Admin] Failed to create production Supabase client:', e?.message);
+    event.locals.supabaseProduction = null;
+  }
+
   /**
    * Get session - simplified to avoid triggering session invalidation
+   * ALWAYS uses production Supabase client for auth (SSO is on production)
    */
   event.locals.safeGetSession = async () => {
     // SSO Debug: Log cookies being received
@@ -90,7 +147,10 @@ export const handle = async ({event, resolve}) => {
     const sbCookies = allCookies.filter(c => c.name.startsWith('sb-'));
     console.log('[Admin SSO] Auth cookies received:', sbCookies.map(c => c.name).join(', ') || 'NONE');
 
-    if (!event.locals.supabase) {
+    // Always use production client for auth - SSO is on production
+    const authClient = event.locals.supabaseProduction || event.locals.supabase;
+
+    if (!authClient) {
       console.log('[Admin SSO] Supabase client not available');
       return {session: null, user: null};
     }
@@ -98,7 +158,7 @@ export const handle = async ({event, resolve}) => {
     try {
       const {
         data: {session}
-      } = await event.locals.supabase.auth.getSession();
+      } = await authClient.auth.getSession();
 
       if (!session) {
         console.log('[Admin SSO] getSession() returned null - check cookie name matches');

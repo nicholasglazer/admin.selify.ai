@@ -11,3 +11,4 @@ export {AdminReactiveState, getAdminState, resetAdminState} from './admin.svelte
 export {PMBoardReactiveState, getPMBoardState, resetPMBoardState} from './pm.svelte.js';
 export {QAReactiveState, getQAState, resetQAState} from './qa.svelte.js';
 export {TemporalReactiveState, getTemporalState, resetTemporalState} from './temporal.svelte.js';
+export {EnvironmentReactiveState, getEnvironmentState, resetEnvironmentState} from './environment.svelte.js';

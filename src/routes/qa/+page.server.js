@@ -1,10 +1,11 @@
 import {error} from '@sveltejs/kit';
-import {env} from '$env/dynamic/private';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({locals, parent}) => {
   const {capabilities} = await parent();
   const {supabase} = locals;
+  // Use environment-aware API base URL from hooks
+  const apiBaseUrl = locals.apiBaseUrl;
 
   // Check capabilities for QA access
   if (!capabilities?.includes('ops.qa.view') && !capabilities?.includes('*')) {
@@ -46,6 +47,6 @@ export const load = async ({locals, parent}) => {
     specs: specs || [],
     runs: runs || [],
     dashboardSummary: dashboardSummary || null,
-    apiBaseUrl: env.API_BASE_URL || ''
+    apiBaseUrl
   };
 };

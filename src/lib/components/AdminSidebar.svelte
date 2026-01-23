@@ -27,6 +27,7 @@
     Activity,
     BookOpen
   } from './icons';
+  import EnvironmentSwitcher from './EnvironmentSwitcher.svelte';
 
   let {teamMember, capabilities} = $props();
 
@@ -106,6 +107,9 @@
 
   {#snippet footer()}
     <div class="sidebar-footer-content">
+      <!-- Environment Switcher -->
+      <EnvironmentSwitcher {collapsed} />
+
       <!-- Theme Toggle -->
       {#if themeState}
         <button

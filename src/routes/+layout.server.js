@@ -1,31 +1,38 @@
 import {error} from '@sveltejs/kit';
-import {env} from '$env/dynamic/private';
 
 // Prevent prerendering - all routes require authentication
 export const prerender = false;
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async ({locals, cookies}) => {
-  const {session, user, supabase} = locals;
-  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
+  const {session, user, supabaseProduction, currentEnvironment, environmentConfig, environments} = locals;
 
   // Get theme from cookie (set by inline script in app.html)
   const theme = cookies.get('admin-theme') || 'miozu-dark';
 
-  if (!user || !supabase) {
+  // Environment data for client
+  const envData = {
+    current: currentEnvironment,
+    config: environmentConfig,
+    production: environments.production,
+    staging: environments.staging
+  };
+
+  if (!user || !supabaseProduction) {
     return {
       session: null,
       user: null,
       teamMember: null,
       capabilities: [],
       theme,
-      apiBaseUrl
+      apiBaseUrl: environmentConfig.apiBaseUrl,
+      environment: envData
     };
   }
 
   try {
-    // Fetch team member data from internal schema
-    const {data: teamMember, error: memberError} = await supabase
+    // ALWAYS fetch team member data from PRODUCTION (team is shared)
+    const {data: teamMember, error: memberError} = await supabaseProduction
       .schema('internal')
       .from('team_members')
       .select(
@@ -63,13 +70,13 @@ export const load = async ({locals, cookies}) => {
       });
     }
 
-    // Get capabilities from RPC
-    const {data: capabilities} = await supabase.rpc('get_team_member_capabilities', {
+    // Get capabilities from RPC (from production)
+    const {data: capabilities} = await supabaseProduction.rpc('get_team_member_capabilities', {
       p_user_id: user.id
     });
 
     // Update last login in internal schema (don't await, fire and forget)
-    supabase
+    supabaseProduction
       .schema('internal')
       .from('team_members')
       .update({last_login_at: new Date().toISOString()})
@@ -83,7 +90,8 @@ export const load = async ({locals, cookies}) => {
       teamMember,
       capabilities: capabilities || [],
       theme,
-      apiBaseUrl
+      apiBaseUrl: environmentConfig.apiBaseUrl,
+      environment: envData
     };
   } catch (e) {
     // Re-throw SvelteKit errors (like our 403s)

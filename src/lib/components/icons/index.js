@@ -56,3 +56,6 @@ export {default as GitBranch} from './GitBranch.svelte';
 
 // Documentation Icons
 export {default as BookOpen} from './BookOpen.svelte';
+
+// Environment Switcher Icons
+export {default as FlaskConical} from './FlaskConical.svelte';

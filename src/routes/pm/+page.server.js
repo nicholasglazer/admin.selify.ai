@@ -1,9 +1,8 @@
-import {env} from '$env/dynamic/private';
-
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({locals, parent}) => {
   const {supabase} = locals;
-  const apiBaseUrl = env.API_BASE_URL || 'https://api.selify.ai';
+  // Use environment-aware API base URL from hooks
+  const apiBaseUrl = locals.apiBaseUrl;
 
   if (!supabase) {
     return {
