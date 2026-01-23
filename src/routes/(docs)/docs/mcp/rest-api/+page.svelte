@@ -251,11 +251,13 @@ results = client.search_products("summer dresses", limit=5)`;
         <p>Semantic search for products using AI embeddings</p>
         <h4>Parameters</h4>
         <table class="params-table">
-          <tr><td><code>query</code></td><td>string</td><td>required</td><td>Search query</td></tr>
-          <tr><td><code>limit</code></td><td>integer</td><td>1-50</td><td>Max results (default: 10)</td></tr>
-          <tr><td><code>min_price_usd</code></td><td>number</td><td>optional</td><td>Minimum price filter</td></tr>
-          <tr><td><code>max_price_usd</code></td><td>number</td><td>optional</td><td>Maximum price filter</td></tr>
-          <tr><td><code>in_stock_only</code></td><td>boolean</td><td>optional</td><td>Only in-stock items</td></tr>
+          <tbody>
+            <tr><td><code>query</code></td><td>string</td><td>required</td><td>Search query</td></tr>
+            <tr><td><code>limit</code></td><td>integer</td><td>1-50</td><td>Max results (default: 10)</td></tr>
+            <tr><td><code>min_price_usd</code></td><td>number</td><td>optional</td><td>Minimum price filter</td></tr>
+            <tr><td><code>max_price_usd</code></td><td>number</td><td>optional</td><td>Maximum price filter</td></tr>
+            <tr><td><code>in_stock_only</code></td><td>boolean</td><td>optional</td><td>Only in-stock items</td></tr>
+          </tbody>
         </table>
         <p class="cost">Cost: 500 micro-units</p>
       </div>
@@ -265,9 +267,11 @@ results = client.search_products("summer dresses", limit=5)`;
         <p>RAG search over brand knowledge base</p>
         <h4>Parameters</h4>
         <table class="params-table">
-          <tr><td><code>query</code></td><td>string</td><td>required</td><td>Search query</td></tr>
-          <tr><td><code>limit</code></td><td>integer</td><td>1-20</td><td>Max results (default: 5)</td></tr>
-          <tr><td><code>source_types</code></td><td>array</td><td>optional</td><td>Filter by source type</td></tr>
+          <tbody>
+            <tr><td><code>query</code></td><td>string</td><td>required</td><td>Search query</td></tr>
+            <tr><td><code>limit</code></td><td>integer</td><td>1-20</td><td>Max results (default: 5)</td></tr>
+            <tr><td><code>source_types</code></td><td>array</td><td>optional</td><td>Filter by source type</td></tr>
+          </tbody>
         </table>
         <p class="cost">Cost: 500 micro-units</p>
       </div>
@@ -277,7 +281,9 @@ results = client.search_products("summer dresses", limit=5)`;
         <p>Get full product information by ID</p>
         <h4>Parameters</h4>
         <table class="params-table">
-          <tr><td><code>product_id</code></td><td>uuid</td><td>required</td><td>Product UUID</td></tr>
+          <tbody>
+            <tr><td><code>product_id</code></td><td>uuid</td><td>required</td><td>Product UUID</td></tr>
+          </tbody>
         </table>
         <p class="cost">Cost: 100 micro-units</p>
       </div>
@@ -287,8 +293,10 @@ results = client.search_products("summer dresses", limit=5)`;
         <p>Find products similar to a given product</p>
         <h4>Parameters</h4>
         <table class="params-table">
-          <tr><td><code>product_id</code></td><td>uuid</td><td>required</td><td>Reference product</td></tr>
-          <tr><td><code>limit</code></td><td>integer</td><td>1-20</td><td>Max results (default: 5)</td></tr>
+          <tbody>
+            <tr><td><code>product_id</code></td><td>uuid</td><td>required</td><td>Reference product</td></tr>
+            <tr><td><code>limit</code></td><td>integer</td><td>1-20</td><td>Max results (default: 5)</td></tr>
+          </tbody>
         </table>
         <p class="cost">Cost: 500 micro-units</p>
       </div>
