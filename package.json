@@ -47,7 +47,7 @@
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.21.2",
     "@lucide/svelte": "^0.563.1",
-    "@miozu/jera": "file:../jera",
+    "@miozu/jera": "0.4.4",
     "@supabase/ssr": "^0.8.0",
     "d3": "^7.9.0",
     "date-fns": "^4.1.0",

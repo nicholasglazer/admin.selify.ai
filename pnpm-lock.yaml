@@ -15,8 +15,8 @@ importers:
         specifier: ^0.563.1
         version: 0.563.1(svelte@5.48.2)
       '@miozu/jera':
-        specifier: file:../jera
-        version: file:../jera(@lucide/svelte@0.563.1(svelte@5.48.2))(shiki@3.21.0)(svelte@5.48.2)
+        specifier: 0.4.4
+        version: 0.4.4(shiki@3.21.0)(svelte@5.48.2)
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.91.1)
@@ -829,15 +829,21 @@ packages:
     peerDependencies:
       svelte: ^5
 
-  '@miozu/jera@file:../jera':
-    resolution: {directory: ../jera, type: directory}
+  '@miozu/jera@0.4.3':
+    resolution: {integrity: sha512-6QZ4HFYK7Uiw23RvzGaRlVaRApL8cEEEcez3KglUt2NTpfgQr19PUxq2CWXJWNImQAbg6kYbtN4v7aw1xcnXzg==}
     peerDependencies:
-      '@lucide/svelte': ^0.500.0
       shiki: ^3.0.0
       svelte: ^5.0.0
     peerDependenciesMeta:
-      '@lucide/svelte':
+      shiki:
         optional: true
+
+  '@miozu/jera@0.4.4':
+    resolution: {integrity: sha512-7L/ryQFNLt8CZxd4Z6wAvLVnqz1UEpoJmnNgtuW+X2s/hZ+TZ20/ZmQ2Ov1v88Qd47uola69uvDNI+zpZr1Vmg==}
+    peerDependencies:
+      shiki: ^3.0.0
+      svelte: ^5.0.0
+    peerDependenciesMeta:
       shiki:
         optional: true
 
@@ -3544,11 +3550,17 @@ snapshots:
     dependencies:
       svelte: 5.48.2
 
-  '@miozu/jera@file:../jera(@lucide/svelte@0.563.1(svelte@5.48.2))(shiki@3.21.0)(svelte@5.48.2)':
+  '@miozu/jera@0.4.3(shiki@3.21.0)(svelte@5.48.2)':
     dependencies:
       svelte: 5.48.2
     optionalDependencies:
-      '@lucide/svelte': 0.563.1(svelte@5.48.2)
+      shiki: 3.21.0
+
+  '@miozu/jera@0.4.4(shiki@3.21.0)(svelte@5.48.2)':
+    dependencies:
+      '@miozu/jera': 0.4.3(shiki@3.21.0)(svelte@5.48.2)
+      svelte: 5.48.2
+    optionalDependencies:
       shiki: 3.21.0
 
   '@pinojs/redact@0.4.0': {}
