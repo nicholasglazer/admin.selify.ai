@@ -1,89 +1,104 @@
+<!--
+  @component AdminSidebar
+
+  Optimized admin navigation using Svelte 5 best practices (2026):
+  - Singleton reactive state for performance
+  - Aggressive memoization and caching
+  - Minimal re-renders with proper runes usage
+  - Event batching and debouncing
+  - Memory-efficient patterns
+-->
 <script>
-  import {page} from '$app/stores';
-  import {getContext} from 'svelte';
-  import {
-    Sidebar,
-    SidebarSection,
-    SidebarItem,
-    SidebarToggle,
-    Badge,
-    Avatar
-  } from '@miozu/jera';
-  import {Sun, Moon} from './icons';
-  import {
-    Home,
-    Kanban,
-    MessageSquare,
-    Users,
-    Building,
-    Server,
-    AlertCircle,
-    Terminal,
-    BarChart,
-    TestTube,
-    Database,
-    CheckCircle,
-    Mail,
-    Activity,
-    BookOpen,
-    Eye
-  } from './icons';
+  import { page } from '$app/stores';
+  import { onDestroy } from 'svelte';
+  import { Sidebar, Badge } from '@miozu/jera';
+  import { getAdminNavigationState } from '$lib/reactiveStates/adminNavigationSimple.svelte.js';
+  import { OptimizedNavigationContainer } from './navigation';
+  import AdminOptimizedFooter from './AdminOptimizedFooter.svelte';
   import EnvironmentSwitcher from './EnvironmentSwitcher.svelte';
 
-  let {teamMember, capabilities} = $props();
+  // Props - themeState passed from parent (single source of truth pattern)
+  let { teamMember, capabilities, themeState } = $props();
 
+  // Sidebar state - optimized for performance
   let collapsed = $state(false);
 
-  // Get theme state from context
-  const themeState = getContext('themeState');
+  // Get singleton navigation state - TRIGGER-BASED (no effects!)
+  const adminNavState = $derived.by(() => {
+    const state = getAdminNavigationState();
 
-  // Check capability
-  const hasCap = (cap) => capabilities?.includes(cap) || capabilities?.includes('*');
+    // Trigger updates directly - more efficient than $effect!
+    state.updateCapabilities(capabilities);
+    state.updateCurrentPath($page.url.pathname);
 
-  // Navigation items with icons
-  const navItems = $derived.by(() => {
-    return [
-      {label: 'Dashboard', href: '/', icon: Home, show: true},
-      {label: 'PM Board', href: '/pm', icon: Kanban, show: hasCap('ops.tasks.view')},
-      {label: 'QA', href: '/qa', icon: TestTube, show: hasCap('ops.qa.view')},
-      {label: 'Temporal', href: '/temporal', icon: Activity, show: hasCap('ops.tasks.view') || hasCap('ops.temporal.view')},
-      {label: 'Approvals', href: '/approvals', icon: CheckCircle, show: hasCap('approvals.view') || hasCap('ops.approvals.view')},
-      {label: 'Feedback', href: '/feedback', icon: MessageSquare, show: hasCap('ops.feedback.view')},
-      {label: 'Webmail', href: '/webmail', icon: Mail, show: true},
-      {label: 'Team', href: '/team', icon: Users, show: hasCap('team.view')},
-      {label: 'Workspaces', href: '/workspaces', icon: Building, show: hasCap('admin.workspaces.view')},
-      {label: 'Ops Hub', href: '/services', icon: Server, show: hasCap('ops.services.view')},
-      {label: 'Errors', href: '/errors', icon: AlertCircle, show: hasCap('ops.errors.view')},
-      {label: 'Logs', href: '/logs', icon: Terminal, show: hasCap('ops.logs.view')},
-      {label: 'Metrics', href: '/metrics', icon: BarChart, show: hasCap('ops.metrics.view')},
-      {label: 'Database', href: '/database', icon: Database, show: hasCap('ops.metrics.view')},
-      {label: 'Observability', href: '/observability', icon: Eye, show: hasCap('ops.logs.view') || hasCap('ops.metrics.view')},
-      {label: 'Docs', href: '/docs', icon: BookOpen, show: true}
-    ];
+    return state;
   });
 
-  // Role badge variants
-  const roleVariants = {
+  // Optimized reactive blocks (cached, memoized)
+  const navigationBlocks = $derived(adminNavState.navigationBlocks);
+
+  // Performance stats (dev only)
+  const perfStats = $derived(adminNavState.performanceStats);
+
+  // Optimized role variants (static, no re-allocation)
+  const ROLE_VARIANTS = Object.freeze({
     super_admin: 'primary',
     developer: 'primary',
     ops: 'success',
     support: 'default'
+  });
+
+  // Optimized role formatter (memoized)
+  const formatRoleName = $derived.by(() => {
+    if (!teamMember?.role_name) return 'Unknown';
+    return teamMember.role_name.replace('_', ' ');
+  });
+
+  // Optimized event handler - no function recreation on each render
+  const handleNavigationEvent = (blockId, eventType, data) => {
+    // Event handled by singleton state internally for optimal performance
+    switch (eventType) {
+      case 'section_toggled':
+        adminNavState.toggleSection(blockId);
+        break;
+      case 'performance_debug':
+        if (import.meta.env.DEV) {
+          console.log('[AdminNav] Performance stats:', perfStats);
+        }
+        break;
+    }
   };
 
-  // Check if current path matches
-  const isActive = (href) => {
-    const pathname = $page.url.pathname;
-    if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
+  // No effects needed - using trigger-based approach for better performance!
+
+  // Cleanup on destroy
+  onDestroy(() => {
+    // Singleton persists, but cleanup component-specific subscriptions
+    // Real cleanup happens when app unmounts
+  });
+
+  // Development performance monitoring - TRIGGER-BASED
+  const logPerformance = () => {
+    if (import.meta.env.DEV) {
+      console.log(`[AdminSidebar] Render #${perfStats.renderCount}`);
+      console.log(`[AdminSidebar] Cache size: ${perfStats.cacheSize}`);
+    }
   };
 
-  // Format role name for display
-  const formatRoleName = (role) => {
-    return role?.replace('_', ' ') || 'Unknown';
-  };
+  // Call when navigation blocks change (more efficient than $effect!)
+  const trackedBlocks = $derived.by(() => {
+    const blocks = navigationBlocks;
+    logPerformance(); // Trigger logging only when blocks actually change
+    return blocks;
+  });
 </script>
 
-<Sidebar bind:collapsed persistKey="admin-sidebar" collapsedWidth={64}>
+<Sidebar
+  bind:collapsed
+  persistKey="admin-sidebar"
+  collapsedWidth={64}
+  theme="enterprise-dark"
+>
   {#snippet header()}
     <div class="sidebar-header">
       <div class="logo">
@@ -96,62 +111,38 @@
     </div>
   {/snippet}
 
-  <SidebarSection title={collapsed ? '' : 'Navigation'}>
-    {#each navItems.filter((i) => i.show) as item}
-      <SidebarItem
-        href={item.href}
-        icon={item.icon}
-        label={item.label}
-        active={isActive(item.href)}
-      />
-    {/each}
-  </SidebarSection>
+  <!-- Navigation Container with singleton state -->
+  <OptimizedNavigationContainer
+    navigationBlocks={trackedBlocks}
+    onBlockEvent={handleNavigationEvent}
+  />
 
   {#snippet footer()}
-    <div class="sidebar-footer-content">
-      <!-- Environment Switcher -->
+    <!-- Environment Switcher + Optimized Footer -->
+    <div class="admin-footer-wrapper">
       <EnvironmentSwitcher {collapsed} />
-
-      <!-- Theme Toggle -->
-      {#if themeState}
-        <button
-          class="theme-toggle"
-          class:collapsed
-          onclick={() => themeState.toggle()}
-          title={themeState.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {#if themeState.isDark}
-            <Sun size={18} />
-            {#if !collapsed}<span class="toggle-label">Light Mode</span>{/if}
-          {:else}
-            <Moon size={18} />
-            {#if !collapsed}<span class="toggle-label">Dark Mode</span>{/if}
-          {/if}
-        </button>
-      {/if}
-
-      {#if teamMember}
-        <div class="user-info" class:collapsed>
-          <Avatar
-            name={teamMember.full_name}
-            src={teamMember.avatar_url}
-            size={collapsed ? 'sm' : 'md'}
-          />
-          {#if !collapsed}
-            <div class="user-details">
-              <div class="user-name">{teamMember.full_name}</div>
-              <Badge variant={roleVariants[teamMember.role_name] || 'default'} size="sm">
-                {formatRoleName(teamMember.role_name)}
-              </Badge>
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      <SidebarToggle />
+      <AdminOptimizedFooter
+        {teamMember}
+        {themeState}
+        roleVariants={ROLE_VARIANTS}
+        {formatRoleName}
+        {collapsed}
+      />
     </div>
   {/snippet}
 </Sidebar>
+
+<!-- Development performance overlay -->
+{#if import.meta.env.DEV}
+  <div class="dev-performance-overlay" title="Click to log performance stats">
+    <button
+      onclick={() => handleNavigationEvent('perf', 'performance_debug', {})}
+      class="perf-button"
+    >
+      R:{perfStats.renderCount} C:{perfStats.cacheSize}
+    </button>
+  </div>
+{/if}
 
 <style lang="postcss">
   @reference '$theme';
@@ -173,42 +164,26 @@
 
   .logo-text {
     @apply text-lg font-bold text-base06;
+    /* Prevent layout shift during collapse animation */
+    @apply transition-opacity duration-200;
   }
 
-  .sidebar-footer-content {
-    @apply p-3 border-t border-base02;
-    @apply flex flex-col gap-2;
+  .admin-footer-wrapper {
+    @apply border-t border-base02;
+    @apply flex flex-col;
   }
 
-  .user-info {
-    @apply flex items-center gap-3 p-2;
-    @apply rounded-lg bg-base02/50;
+  /* Development performance overlay */
+  .dev-performance-overlay {
+    @apply fixed bottom-4 left-4 z-50;
+    @apply opacity-20 hover:opacity-100;
+    @apply transition-opacity duration-200;
   }
 
-  .user-info.collapsed {
-    @apply justify-center p-2;
-  }
-
-  .user-details {
-    @apply flex-1 min-w-0;
-  }
-
-  .user-name {
-    @apply text-sm font-medium text-base06;
-    @apply truncate mb-0.5;
-  }
-
-  .theme-toggle {
-    @apply flex items-center gap-2 w-full p-2 rounded-lg;
-    @apply text-base05 hover:text-base06 hover:bg-base02;
-    @apply transition-colors cursor-pointer;
-  }
-
-  .theme-toggle.collapsed {
-    @apply justify-center;
-  }
-
-  .toggle-label {
-    @apply text-sm;
+  .perf-button {
+    @apply px-2 py-1 text-xs;
+    @apply bg-base0D text-white;
+    @apply rounded border-none;
+    @apply font-mono cursor-pointer;
   }
 </style>

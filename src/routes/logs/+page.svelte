@@ -1,10 +1,11 @@
 <script>
   import {goto} from '$app/navigation';
   import {page} from '$app/stores';
-  import {Search, FileText, AlertTriangle, Info, Bug, Copy, Check, Filter, RefreshCw, Calendar} from '@lucide/svelte';
+  import {Search, FileText, AlertTriangle, Info, Bug, Copy, Check, Filter, RefreshCw, Calendar, X} from '@lucide/svelte';
+  import LogHistogram from './LogHistogram.svelte';
 
   let {data} = $props();
-  const {logs, services, stats, filters, hasMore} = data;
+  const {logs, services, stats, filters, hasMore, histogram} = data;
 
   // Track expanded log
   let expandedLog = $state(null);
@@ -108,27 +109,15 @@
         <span class="filter-label">Filter by:</span>
       </div>
       <select
-        class="filter-select"
+        class="filter-select service-select"
         value={filters.service || ''}
         onchange={(e) => updateFilter('service', e.target.value)}
         aria-label="Filter by service"
       >
-        <option value="">All services</option>
-        {#each services as service}
-          <option value={service}>{service}</option>
+        <option value="">All services ({services.reduce((sum, s) => sum + (s.log_count || 0), 0).toLocaleString()})</option>
+        {#each services.sort((a, b) => (b.log_count || 0) - (a.log_count || 0)) as service}
+          <option value={service.name}>{service.name} ({(service.log_count || 0).toLocaleString()})</option>
         {/each}
-      </select>
-      <select
-        class="filter-select"
-        value={filters.level || ''}
-        onchange={(e) => updateFilter('level', e.target.value)}
-        aria-label="Filter by level"
-      >
-        <option value="">All levels</option>
-        <option value="error">Error</option>
-        <option value="warn">Warning</option>
-        <option value="info">Info</option>
-        <option value="debug">Debug</option>
       </select>
       <select
         class="filter-select time-filter"
@@ -173,49 +162,42 @@
     </div>
   </div>
 
-  <!-- Stats Overview -->
-  <div class="stats-overview">
-    <div class="stat-card">
-      <div class="stat-header">
-        <FileText size={16} class="stat-icon" />
-        <span class="stat-label">Total Logs</span>
-      </div>
-      <div class="stat-value">{stats.total.toLocaleString()}</div>
-    </div>
+  <!-- Log Histogram -->
+  <LogHistogram data={histogram} />
 
-    <div class="stat-card" class:stat-alert={stats.errors > 0}>
-      <div class="stat-header">
-        <AlertTriangle size={16} class="stat-icon" />
-        <span class="stat-label">Errors</span>
-      </div>
-      <div class="stat-value">{stats.errors.toLocaleString()}</div>
-      {#if stats.errors > 0}
-        <div class="stat-trend error">
-          Requires attention
-        </div>
-      {/if}
-    </div>
-
-    <div class="stat-card" class:stat-warning={stats.warnings > 0}>
-      <div class="stat-header">
-        <AlertTriangle size={16} class="stat-icon" />
-        <span class="stat-label">Warnings</span>
-      </div>
-      <div class="stat-value">{stats.warnings.toLocaleString()}</div>
-      {#if stats.warnings > 0}
-        <div class="stat-trend warning">
-          Monitor closely
-        </div>
-      {/if}
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-header">
-        <Info size={16} class="stat-icon" />
-        <span class="stat-label">Info</span>
-      </div>
-      <div class="stat-value">{stats.info.toLocaleString()}</div>
-    </div>
+  <!-- Severity Toggles (Quick Filters) -->
+  <div class="severity-toggles">
+    <button
+      class="severity-toggle"
+      class:active={!filters.level}
+      onclick={() => updateFilter('level', null)}
+    >
+      All <span class="toggle-count">{stats.total.toLocaleString()}</span>
+    </button>
+    <button
+      class="severity-toggle error"
+      class:active={filters.level === 'error'}
+      onclick={() => updateFilter('level', filters.level === 'error' ? null : 'error')}
+    >
+      <span class="toggle-dot"></span>
+      Errors <span class="toggle-count">{stats.errors.toLocaleString()}</span>
+    </button>
+    <button
+      class="severity-toggle warn"
+      class:active={filters.level === 'warn'}
+      onclick={() => updateFilter('level', filters.level === 'warn' ? null : 'warn')}
+    >
+      <span class="toggle-dot"></span>
+      Warnings <span class="toggle-count">{stats.warnings.toLocaleString()}</span>
+    </button>
+    <button
+      class="severity-toggle info"
+      class:active={filters.level === 'info'}
+      onclick={() => updateFilter('level', filters.level === 'info' ? null : 'info')}
+    >
+      <span class="toggle-dot"></span>
+      Info <span class="toggle-count">{stats.info.toLocaleString()}</span>
+    </button>
   </div>
 
   <!-- Logs List -->
@@ -470,6 +452,57 @@
 
   .time-filter {
     @apply bg-base0D/5 border-base0D/30 text-base0D;
+  }
+
+  .service-select {
+    @apply min-w-[180px];
+  }
+
+  /* Severity Toggle Filters */
+  .severity-toggles {
+    @apply flex flex-wrap gap-2 mb-6;
+  }
+
+  .severity-toggle {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-base01 border border-base02;
+    @apply rounded-lg text-sm font-medium text-base04 cursor-pointer;
+    @apply hover:bg-base02 hover:border-base03 transition-all duration-200;
+  }
+
+  .severity-toggle.active {
+    @apply bg-base02 border-base03 text-base05;
+  }
+
+  .severity-toggle .toggle-dot {
+    @apply w-2 h-2 rounded-full bg-current;
+  }
+
+  .severity-toggle.error .toggle-dot {
+    @apply bg-base08;
+  }
+
+  .severity-toggle.warn .toggle-dot {
+    @apply bg-base09;
+  }
+
+  .severity-toggle.info .toggle-dot {
+    @apply bg-base0B;
+  }
+
+  .severity-toggle.error.active {
+    @apply bg-base08/10 border-base08/30 text-base08;
+  }
+
+  .severity-toggle.warn.active {
+    @apply bg-base09/10 border-base09/30 text-base09;
+  }
+
+  .severity-toggle.info.active {
+    @apply bg-base0B/10 border-base0B/30 text-base0B;
+  }
+
+  .toggle-count {
+    @apply text-xs opacity-70 font-mono;
   }
 
   /* Modern Search Section */

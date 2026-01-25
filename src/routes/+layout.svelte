@@ -2,9 +2,9 @@
   import '../app.css';
   import {setContext, onMount, onDestroy} from 'svelte';
   import {browser} from '$app/environment';
-  import {AdminSidebar, Toaster, ActivityTracker} from '$components';
+  import {getTheme} from '@miozu/jera';
+  import {DashStyleSidebar, Toaster, ActivityTracker} from '$components';
   import {
-    getThemeState,
     getAdminState,
     getToastState,
     getTemporalState,
@@ -14,9 +14,8 @@
 
   let {data, children} = $props();
 
-  // Initialize reactive states from server data
-  // Theme is already applied via inline script in app.html - no onMount needed
-  const themeState = getThemeState(data.theme);
+  // Theme singleton from Jera - syncs with DOM set by app.html
+  const themeState = getTheme();
   const adminState = getAdminState({
     teamMember: data.teamMember,
     capabilities: data.capabilities
@@ -53,6 +52,10 @@
 
   onMount(async () => {
     if (browser) {
+      // Sync theme state with DOM (hydration from app.html inline script)
+      themeState.sync();
+      themeState.init();
+
       const {getSupabaseClient, createInternalSchemaProxy} = await import('$lib/supabase.js');
       supabaseHolder.client = getSupabaseClient();
       // Create internal schema proxy from the main client (shares session)
@@ -75,7 +78,7 @@
   });
 
   // Provide states via context for child components
-  setContext('themeState', themeState);
+  // Note: themeState uses Jera singleton pattern - no context needed
   setContext('adminState', adminState);
   setContext('toastState', toastState);
   setContext('temporalState', temporalState);
@@ -90,7 +93,7 @@
 
 <div class="admin-layout">
   {#if teamMember}
-    <AdminSidebar {teamMember} {capabilities} />
+    <DashStyleSidebar {teamMember} {capabilities} {themeState} />
   {/if}
 
   <main class="main-content">
@@ -110,7 +113,8 @@
   @reference '$theme';
 
   .admin-layout {
-    @apply flex min-h-screen bg-base00;
+    @apply min-h-screen bg-base00;
+    @apply flex flex-col;
   }
 
   /* Only enable transitions after initial paint to prevent FOUC */
@@ -120,9 +124,32 @@
 
   .main-content {
     @apply flex-1 flex flex-col overflow-y-auto;
+    /* Account for fixed sidebar */
+    margin-left: 300px;
+    transition: margin-left 250ms cubic-bezier(0.23, 1, 0.320, 1);
+  }
+
+  /* Adjust for collapsed sidebar */
+  :global(.navigation-sidebar.collapsed) ~ .main-content {
+    margin-left: 60px;
   }
 
   .content-container {
     @apply flex-1 p-5 w-full;
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .main-content {
+      margin-left: 0;
+    }
+
+    :global(.navigation-sidebar) {
+      transform: translateX(-100%);
+    }
+
+    :global(.navigation-sidebar.mobile-open) {
+      transform: translateX(0);
+    }
   }
 </style>

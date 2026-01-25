@@ -62,3 +62,6 @@ export {default as FlaskConical} from './FlaskConical.svelte';
 
 // Observability Icons
 export {default as Eye} from './Eye.svelte';
+
+// Navigation/Docs Icons (from lucide)
+export { Zap, Package, MapPin, Code2, Rocket } from '@lucide/svelte';

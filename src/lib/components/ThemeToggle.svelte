@@ -1,16 +1,13 @@
 <script>
-  import {getThemeState} from '$lib/reactiveStates';
-
-  let {size = 20, class: className = ''} = $props();
-
-  const themeState = getThemeState();
+  // Props - themeState passed from parent (single source of truth pattern)
+  let {themeState, size = 20, class: className = ''} = $props();
 
   function handleToggle() {
-    themeState.toggle();
+    themeState?.toggle();
   }
 
   // Derived state for current theme
-  let isDark = $derived(themeState.isDark);
+  let isDark = $derived(themeState?.isDark ?? true);
 </script>
 
 <button

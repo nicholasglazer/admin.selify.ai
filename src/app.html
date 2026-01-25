@@ -10,32 +10,46 @@
     <script>
       (function () {
         try {
-          // Priority: localStorage > cookie > system preference > default (dark)
-          let theme = localStorage.getItem('admin-theme');
+          // Storage key: miozu-theme (shared across Miozu apps)
+          // Migration: also check old admin-theme key for backwards compatibility
+          let pref = localStorage.getItem('miozu-theme') || localStorage.getItem('admin-theme');
 
-          // Fallback to cookie
-          if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
-            const match = document.cookie.match(/admin-theme=([^;]+)/);
-            theme = match?.[1];
+          // Fallback to cookie (check both keys)
+          if (!pref || !['light', 'dark', 'system'].includes(pref)) {
+            const match = document.cookie.match(/miozu-theme=([^;]+)/) ||
+                          document.cookie.match(/admin-theme=([^;]+)/);
+            pref = match?.[1];
           }
 
-          // Fallback to system preference
-          if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
-            theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'miozu-dark' : 'miozu-light';
-          }
-
-          // Default to dark for admin
-          if (!theme || (theme !== 'miozu-light' && theme !== 'miozu-dark')) {
+          // Resolve preference to actual theme
+          let theme;
+          if (pref === 'light') {
+            theme = 'miozu-light';
+          } else if (pref === 'dark') {
             theme = 'miozu-dark';
+          } else if (pref === 'system') {
+            theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'miozu-dark' : 'miozu-light';
+          } else if (pref === 'miozu-light') {
+            theme = 'miozu-light';
+            pref = 'light'; // Normalize
+          } else if (pref === 'miozu-dark') {
+            theme = 'miozu-dark';
+            pref = 'dark'; // Normalize
+          } else {
+            // Default to system preference, fallback to dark
+            theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'miozu-dark' : 'miozu-light';
+            pref = 'system';
           }
 
           // Apply immediately
           document.documentElement.setAttribute('data-theme', theme);
           document.documentElement.style.colorScheme = theme === 'miozu-dark' ? 'dark' : 'light';
 
-          // Persist
-          localStorage.setItem('admin-theme', theme);
-          document.cookie = `admin-theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+          // Persist to new key (miozu-theme), remove old key
+          localStorage.setItem('miozu-theme', pref);
+          localStorage.removeItem('admin-theme');
+          document.cookie = `miozu-theme=${pref}; path=/; max-age=31536000; SameSite=Lax`;
+          document.cookie = 'admin-theme=; path=/; max-age=0'; // Clear old cookie
 
           // Enable transitions after initial paint (prevents FOUC)
           requestAnimationFrame(() => {

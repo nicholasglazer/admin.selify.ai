@@ -30,10 +30,17 @@ export const load = async ({locals, parent, fetch, url}) => {
   if (search) logsParams.set('search', search);
   logsParams.set('limit', '200');
 
-  // Fetch logs and services in parallel
-  const [logsResponse, servicesResponse] = await Promise.all([
+  // Build histogram params
+  const histogramParams = new URLSearchParams();
+  histogramParams.set('hours', hours.toString());
+  histogramParams.set('buckets', '30');
+  if (service) histogramParams.set('service', service);
+
+  // Fetch logs, services, and histogram in parallel
+  const [logsResponse, servicesResponse, histogramResponse] = await Promise.all([
     fetch(`${apiBaseUrl}/api/ops/logs?${logsParams}`, {headers}).catch(() => null),
-    fetch(`${apiBaseUrl}/api/ops/logs/services?hours=24`, {headers}).catch(() => null)
+    fetch(`${apiBaseUrl}/api/ops/logs/services?hours=24`, {headers}).catch(() => null),
+    fetch(`${apiBaseUrl}/api/ops/logs/histogram?${histogramParams}`, {headers}).catch(() => null)
   ]);
 
   // Parse responses
@@ -41,6 +48,7 @@ export const load = async ({locals, parent, fetch, url}) => {
   let total = 0;
   let hasMore = false;
   let services = [];
+  let histogram = {buckets: [], bucket_minutes: 2, total_logs: 0, total_errors: 0, total_warnings: 0};
 
   if (logsResponse?.ok) {
     const data = await logsResponse.json();
@@ -52,6 +60,10 @@ export const load = async ({locals, parent, fetch, url}) => {
   if (servicesResponse?.ok) {
     const data = await servicesResponse.json();
     services = data.services || [];
+  }
+
+  if (histogramResponse?.ok) {
+    histogram = await histogramResponse.json();
   }
 
   // Compute stats from logs
@@ -67,6 +79,7 @@ export const load = async ({locals, parent, fetch, url}) => {
     services,
     stats,
     hasMore,
+    histogram,
     filters: {
       service,
       level,

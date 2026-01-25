@@ -7,8 +7,8 @@ export const prerender = false;
 export const load = async ({locals, cookies}) => {
   const {session, user, supabaseProduction, currentEnvironment, environmentConfig, environments} = locals;
 
-  // Get theme from cookie (set by inline script in app.html)
-  const theme = cookies.get('admin-theme') || 'miozu-dark';
+  // Get theme preference from cookie (miozu-theme is the unified key)
+  const theme = cookies.get('miozu-theme') || cookies.get('admin-theme') || 'dark';
 
   // Environment data for client
   const envData = {

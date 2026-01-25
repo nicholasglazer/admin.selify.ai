@@ -1,6 +1,6 @@
 # admin.selify.ai - Internal Operations Dashboard
 
-**Last Updated:** January 19, 2026
+**Last Updated:** January 25, 2026
 **Purpose:** Internal team management, workspace admin, AI-first task board, and ops monitoring
 
 ---
@@ -11,6 +11,8 @@ This is the internal admin dashboard for Selify staff. It provides:
 
 - **AI-First PM Board** - Task management for team ops (`/pm`)
 - **AI-First QA Dashboard** - Playwright test automation with natural language (`/qa`)
+- **Observability & Logs** - Centralized log viewer with filtering (`/logs`)
+- **Webmail** - Team email client for @selify.ai accounts (`/webmail`)
 - Team member onboarding (Temporal workflow)
 - Workspace management and billing admin
 - Service health monitoring
@@ -20,12 +22,13 @@ This is the internal admin dashboard for Selify staff. It provides:
 
 ## Database Schema Architecture
 
-The database uses **two schemas** to separate concerns:
+The database uses **three schemas** to separate concerns:
 
-| Schema     | Purpose         | Tables                                  |
-| ---------- | --------------- | --------------------------------------- |
-| `public`   | Customer data   | workspaces, profiles, products, billing |
-| `internal` | Team operations | tasks, team_members, audit_logs         |
+| Schema          | Purpose           | Tables                                    |
+| --------------- | ----------------- | ----------------------------------------- |
+| `public`        | Customer data     | workspaces, profiles, products, billing   |
+| `internal`      | Team operations   | tasks, team_members, audit_logs           |
+| `observability` | Logs & telemetry  | otel_logs, otel_spans, ai_costs           |
 
 ### Event-Driven Architecture (Updated January 2026)
 
@@ -102,6 +105,233 @@ const subscription = supabase
 - Requires `internal.team_members` record with `status = 'active'`
 - Permissions via `internal.team_capabilities` and `get_team_member_capabilities()` RPC
 
+## Webmail & Team Email System
+
+The admin dashboard includes a full-featured webmail client at `/webmail` for team email accounts.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    admin.selify.ai/webmail                       │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   Sidebar    │  │  Email List  │  │ Email View/  │          │
+│  │  (folders)   │  │              │  │   Compose    │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│         │                 │                 │                   │
+│         ▼                 ▼                 ▼                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              MailReactiveState (Svelte 5 runes)         │   │
+│  │  - accounts[], mailboxes[], messages[]                  │   │
+│  │  - IMAP folder sync, message fetch                      │   │
+│  │  - SMTP send via backend API                            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    webmail-api service                           │
+├─────────────────────────────────────────────────────────────────┤
+│  POST /api/accounts      - Add email account                    │
+│  GET  /api/mailboxes     - List IMAP folders                    │
+│  GET  /api/messages      - Fetch messages from folder           │
+│  GET  /api/message/:uid  - Get single message with body         │
+│  POST /api/send          - Send email via SMTP                  │
+│  POST /api/test-connection - Verify IMAP/SMTP credentials       │
+│                                                                 │
+│  Uses: ImapFlow (IMAP), Nodemailer (SMTP)                      │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       MXRoute Email                              │
+├─────────────────────────────────────────────────────────────────┤
+│  Host: shadow.mxrouting.net                                     │
+│  IMAP: Port 993 (SSL)                                           │
+│  SMTP: Port 2525 (STARTTLS) - Ports 465/587 blocked on server  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Email Provider: MXRoute
+
+Team email accounts use **MXRoute** as the email provider:
+
+| Setting | Value |
+|---------|-------|
+| IMAP Host | `shadow.mxrouting.net` |
+| IMAP Port | `993` (SSL) |
+| SMTP Host | `shadow.mxrouting.net` |
+| SMTP Port | `2525` (STARTTLS) |
+
+**Note:** Standard SMTP ports 465 and 587 are blocked on our Hetzner server. Port 2525 uses STARTTLS for encryption.
+
+### Database Schema
+
+Team email accounts are stored in `internal.team_email_accounts`:
+
+```sql
+internal.team_email_accounts (
+  id UUID PRIMARY KEY,
+  team_member_id UUID REFERENCES internal.team_members(id),
+  email TEXT NOT NULL UNIQUE,
+  display_name TEXT,
+
+  -- Server configuration
+  imap_host TEXT NOT NULL,
+  imap_port INTEGER DEFAULT 993,
+  smtp_host TEXT NOT NULL,
+  smtp_port INTEGER DEFAULT 2525,
+
+  -- Encrypted credentials (AES-256-GCM)
+  password_encrypted TEXT NOT NULL,
+  password_iv TEXT NOT NULL,
+  password_salt TEXT NOT NULL,
+
+  -- UI preferences
+  color TEXT DEFAULT '#8b5cf6',
+  is_primary BOOLEAN DEFAULT false,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+)
+```
+
+### Password Encryption
+
+Passwords are encrypted at rest using **AES-256-GCM** with PBKDF2 key derivation:
+
+```javascript
+// Encryption parameters
+- Algorithm: AES-256-GCM
+- Key derivation: PBKDF2 with 100,000 iterations
+- Salt: Random 16 bytes per account
+- IV: Random 12 bytes per encryption
+
+// Stored fields
+- password_encrypted: Base64-encoded ciphertext + auth tag
+- password_iv: Base64-encoded initialization vector
+- password_salt: Base64-encoded salt for key derivation
+```
+
+### Team Onboarding Integration
+
+Email accounts are automatically provisioned during team member onboarding via Temporal workflow:
+
+```
+1. Admin initiates onboarding at /team/onboard
+                    │
+                    ▼
+2. TeamOnboardingWorkflow (Temporal)
+   - Creates team_members record
+   - Provisions @selify.ai email in MXRoute
+   - Creates team_email_accounts record with encrypted password
+   - Sends welcome email with credentials
+                    │
+                    ▼
+3. Team member receives onboarding email with:
+   - Login credentials for dash.selify.ai
+   - Email password for webmail access
+```
+
+### Frontend Components
+
+Located in `src/lib/features/mail/`:
+
+| Component | Purpose |
+|-----------|---------|
+| `MailLayout.svelte` | Main webmail container with three-panel layout |
+| `MailboxSidebar.svelte` | Folder list with unread counts, compose button |
+| `EmailList.svelte` | Message list with virtualized scrolling |
+| `EmailView.svelte` | Message display with HTML rendering |
+| `ComposeModal.svelte` | Email composer with rich text |
+| `AddEmailAccountModal.svelte` | Add new email account with provider presets |
+| `AccountSwitcher.svelte` | Switch between multiple email accounts |
+
+### State Management
+
+`src/lib/features/mail/state/mailState.svelte.js` uses Svelte 5 runes:
+
+```javascript
+class MailReactiveState {
+  // Reactive state
+  accounts = $state([]);
+  mailboxes = $state([]);
+  messages = $state([]);
+  currentAccount = $state(null);
+  currentMailbox = $state('INBOX');
+
+  // Derived state
+  specialMailboxes = $derived.by(() => {
+    // Deduplicated special folders (Inbox, Sent, Drafts, etc.)
+  });
+
+  customMailboxes = $derived.by(() => {
+    // User-created folders
+  });
+
+  // Methods
+  async loadAccounts() { ... }
+  async selectMailbox(path) { ... }
+  async sendEmail(to, subject, body) { ... }
+}
+```
+
+### API Endpoints (Kong Gateway)
+
+Webmail API is routed through Kong at `/webmail/api/*`:
+
+```yaml
+# volumes/api/kong.yml
+- name: webmail-api
+  url: http://api-webmail:3012
+  routes:
+    - name: webmail-api-route
+      paths:
+        - /webmail
+  plugins:
+    - name: key-auth
+    - name: acl
+      config:
+        allow: [admin]
+```
+
+### Provider Presets
+
+The AddEmailAccountModal includes presets for common providers:
+
+| Provider | IMAP Host | SMTP Host | Notes |
+|----------|-----------|-----------|-------|
+| MXRoute | shadow.mxrouting.net | shadow.mxrouting.net | Port 2525 SMTP |
+| Gmail | imap.gmail.com | smtp.gmail.com | Requires App Password |
+| Outlook | outlook.office365.com | smtp.office365.com | |
+| Yahoo | imap.mail.yahoo.com | smtp.mail.yahoo.com | Requires App Password |
+| Fastmail | imap.fastmail.com | smtp.fastmail.com | |
+| Custom | (user provided) | (user provided) | |
+
+### Useful Commands
+
+```bash
+# Check webmail API logs
+docker logs api-webmail --tail 50 -f
+
+# Test SMTP connectivity (port 2525)
+openssl s_client -connect shadow.mxrouting.net:2525 -starttls smtp
+
+# Query team email accounts
+docker exec supabase-db psql -U postgres -d postgres -c "
+  SELECT email, display_name, smtp_port FROM internal.team_email_accounts;
+"
+
+# Update all MXRoute accounts to use port 2525
+docker exec supabase-db psql -U postgres -d postgres -c "
+  UPDATE internal.team_email_accounts SET smtp_port = 2525
+  WHERE smtp_host = 'shadow.mxrouting.net';
+"
+```
+
+---
+
 ## Capability-Based Permissions
 
 Roles are bundles of capabilities. Check capabilities in server load functions:
@@ -148,6 +378,10 @@ admin.selify.ai/
 │   │   │   ├── NLTestCreator.svelte  # Natural language test creator
 │   │   │   ├── SpecDetailModal.svelte # Spec detail/edit modal
 │   │   │   └── RunDetailModal.svelte  # Run results modal
+│   │   ├── logs/                # Observability & Logs
+│   │   │   └── +page.svelte     # Log viewer with filters
+│   │   ├── webmail/             # Team Email Client
+│   │   │   └── +page.svelte     # Webmail interface
 │   │   ├── team/
 │   │   │   ├── +page.svelte     # Team list
 │   │   │   └── onboard/         # Onboarding form
@@ -629,6 +863,172 @@ const {data} = await supabase.rpc('qa_get_specs_for_push', {p_repo_name: 'backen
 
 ---
 
+## Observability & Logs Module (Updated January 2026)
+
+The admin dashboard provides centralized log viewing and observability at `/logs`.
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 Docker Container Logs                           │
+│  (selify-*, api-*, worker-*, supabase-*)                       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    filelog receiver
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              OpenTelemetry Collector                            │
+├─────────────────────────────────────────────────────────────────┤
+│  Receivers:                                                     │
+│  - OTLP (gRPC :4317, HTTP :4318) - SDK instrumented services   │
+│  - Zipkin (:9411) - Kong API Gateway traces                    │
+│  - filelog/docker - Container JSON logs                        │
+│                                                                 │
+│  Processors:                                                    │
+│  - memory_limiter (1GB)                                        │
+│  - filter/healthchecks (drops health check noise)              │
+│  - transform (AI cost attribution)                             │
+│  - tail_sampling (keep all AI/error traces, sample 10% others) │
+│  - batch (efficient transmission)                              │
+│                                                                 │
+│  Exporters:                                                     │
+│  - Zipkin (trace visualization)                                │
+│  - PostgreSQL (analytics via postgres-exporter)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              PostgreSQL (observability schema)                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Tables:                                                        │
+│  - otel_logs: Container logs with service name, severity       │
+│  - otel_spans: Distributed traces                              │
+│  - ai_costs: AI model usage and cost attribution               │
+│                                                                 │
+│  Retention: 7 days (daily cleanup via pg_cron)                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    admin.selify.ai/logs                         │
+├─────────────────────────────────────────────────────────────────┤
+│  - Filter by service, severity, time range                     │
+│  - Search log content                                          │
+│  - Real-time updates                                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Database Schema (observability)
+
+```sql
+-- Logs from all services
+observability.otel_logs (
+  id, timestamp, service_name, severity_text,
+  body, resource_attributes, log_attributes
+)
+
+-- Distributed traces
+observability.otel_spans (
+  id, trace_id, span_id, parent_span_id,
+  service_name, span_name, kind,
+  start_time, end_time, duration_ms,
+  status_code, attributes
+)
+
+-- AI cost tracking
+observability.ai_costs (
+  id, timestamp, workspace_id, user_id,
+  model_provider, model_name,
+  input_tokens, output_tokens, cost_usd,
+  trace_id, span_id
+)
+```
+
+### Querying Observability Schema
+
+```javascript
+// Query logs from observability schema
+const { data } = await supabase
+  .schema('observability')
+  .from('otel_logs')
+  .select('*')
+  .order('timestamp', { ascending: false })
+  .limit(100);
+
+// Get available services
+const { data: services } = await supabase
+  .schema('observability')
+  .from('otel_logs')
+  .select('service_name')
+  .not('service_name', 'is', null)
+  .neq('service_name', '')
+  .limit(1000);
+```
+
+### Health Check Filtering
+
+The collector automatically filters noisy health check logs:
+- `/health`, `/healthz`, `/ready`, `/readyz`, `/metrics`, `/ping`, `/status` endpoints
+- Health check patterns in log bodies
+
+### Service Name Extraction
+
+Container logs are parsed to extract service names:
+- Pattern: `selify-*`, `api-*`, `worker-*`, `supabase-*`
+- Extracted from log body prefix (e.g., `[selify-agent-api] ...`)
+- Falls back to "unknown" if no pattern matches
+
+### Log Retention
+
+Automatic cleanup via PostgreSQL cron jobs:
+
+| Job | Schedule | Retention |
+|-----|----------|-----------|
+| `cleanup-old-logs` | Daily 3:00 AM | 7 days |
+| `cleanup-old-health-checks` | Daily 3:15 AM | 3 days |
+
+```sql
+-- Manual cleanup if needed
+SELECT observability.cleanup_old_logs(7);  -- Keep 7 days
+SELECT internal.cleanup_old_health_checks(3);  -- Keep 3 days
+```
+
+### Configuration Files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| otel-collector-config.yaml | `backend-selify.ai/volumes/observability/` | Collector pipeline config |
+| postgres-exporter/main.go | `backend-selify.ai/services/postgres-exporter/` | OTLP → PostgreSQL bridge |
+
+### Capabilities Required
+
+| Capability | Allows |
+|------------|--------|
+| `ops.logs.view` | View logs page and query logs |
+
+### Useful Commands
+
+```bash
+# View collector logs
+docker logs selify-otel-collector --tail 50 -f
+
+# Check log counts
+docker exec supabase-db psql -U postgres -d postgres -c "
+  SELECT service_name, COUNT(*) FROM observability.otel_logs
+  WHERE timestamp > NOW() - INTERVAL '1 hour'
+  GROUP BY service_name ORDER BY count DESC;
+"
+
+# Check retention job status
+docker exec supabase-db psql -U postgres -d postgres -c "
+  SELECT jobname, last_run_time, next_run_time FROM cron.job_run_details
+  WHERE jobname LIKE 'cleanup%' ORDER BY last_run_time DESC LIMIT 5;
+"
+```
+
+---
+
 ## Backend Event-Driven Architecture (Updated January 2026)
 
 ### System Overview
@@ -728,3 +1128,74 @@ export RUNPOD_POLLING_STRATEGY=linear
 - `backend-selify.ai/EVENT_DRIVEN_DEPLOYMENT_RESULTS.md` - Complete deployment summary
 - `backend-selify.ai/COMPREHENSIVE_ANTIPATTERN_AUDIT_REPORT.md` - Original analysis
 - `backend-selify.ai/COMPREHENSIVE_IMPROVEMENT_ROADMAP.md` - Future optimizations
+
+---
+
+## Svelte 5 Reactivity Patterns (CRITICAL)
+
+**Full guide:** [/docs/reactivity](/docs/reactivity) in admin dashboard
+
+### SvelteKit Execution Order
+
+| Phase | File | Server | Client | Runs |
+|-------|------|--------|--------|------|
+| 1 | +layout.server.js | ✓ | - | Every request |
+| 2 | +layout.js | ✓ | ✓ | **Every navigation** |
+| 3 | +layout.svelte script | ✓ | ✓ | Once on mount |
+| 4 | onMount() | - | ✓ | Once, client only |
+
+### State Classification & Patterns
+
+| Type | Example | Initialize In | Pass Via |
+|------|---------|---------------|----------|
+| **Singleton** | Theme, Toast | +layout.svelte | Props |
+| **Data-heavy** | User profile, workspace | +layout.server.js | data prop |
+| **Feature state** | PMBoardState, QAState | +page.svelte | Props to children |
+| **Component-local** | Form inputs, UI toggles | Component | N/A |
+
+### Correct Patterns
+
+**Singletons (theme, toast)** - Initialize once, pass via props:
+```svelte
+<!-- +layout.svelte -->
+<script>
+  import { getTheme } from '@miozu/jera';
+  const themeState = getTheme();  // Call ONCE
+  onMount(() => { themeState.sync(); themeState.init(); });
+</script>
+<Sidebar {themeState} />  <!-- Pass as prop -->
+```
+
+**Feature state** - Create in page, pass to children:
+```svelte
+<!-- +page.svelte -->
+<script>
+  let { data } = $props();
+  const pmState = new PMBoardReactiveState(data.supabase, data.tasks);
+</script>
+<PMBoard {pmState} />
+```
+
+### Anti-Patterns (NEVER DO)
+
+```javascript
+// ❌ Calling singleton in every component
+import { getTheme } from '@miozu/jera';
+const theme = getTheme();  // NO - receive as prop instead
+
+// ❌ Creating state in +layout.js (runs every navigation)
+export const load = () => {
+  const themeState = getTheme();  // NO - wasteful, runs on every nav
+  return { themeState };
+};
+
+// ❌ Using context for singletons
+setContext('theme', getTheme());  // NO - use props for explicit flow
+```
+
+### Why This Matters
+
+- **Performance**: +layout.js runs every navigation; +layout.svelte runs once
+- **Security**: Explicit prop flow prevents state leakage between requests
+- **Testability**: Props can be mocked; singletons/context cannot
+- **Scalability**: Clear ownership prevents state management chaos

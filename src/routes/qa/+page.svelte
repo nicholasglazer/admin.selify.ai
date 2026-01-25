@@ -2,10 +2,13 @@
   import {setContext, getContext, onMount, onDestroy} from 'svelte';
   import {PageHeader} from '$components';
   import {Badge} from '@miozu/jera';
+  import {Play, Plus, Layers, Calendar, AlertTriangle} from '@lucide/svelte';
   import {getQAState, resetQAState} from '$lib/reactiveStates';
   import QADashboard from './QADashboard.svelte';
   import QASpecList from './QASpecList.svelte';
   import QARunList from './QARunList.svelte';
+  import QASuiteList from './QASuiteList.svelte';
+  import QATriageView from './QATriageView.svelte';
   import QADocs from './QADocs.svelte';
   import NLTestCreator from './NLTestCreator.svelte';
   import SpecDetailModal from './SpecDetailModal.svelte';
@@ -28,33 +31,42 @@
 
   setContext('qaState', qaState);
 
-  // Set supabase client when it becomes available
-  onMount(() => {
-    const checkSupabase = setInterval(() => {
-      if (supabaseHolder?.client) {
-        qaState.supabase = supabaseHolder.client;
-        clearInterval(checkSupabase);
-      }
-    }, 50);
-    return () => clearInterval(checkSupabase);
-  });
 
   // Derived values
   let viewMode = $derived(qaState.viewMode);
   let totalSpecs = $derived(qaState.totalSpecs);
+  let totalSuites = $derived(qaState.totalSuites);
   let passRate = $derived(qaState.passRate);
   let healRate = $derived(qaState.healRate);
+  let pendingTriage = $derived(qaState.pendingTriageCount);
   let selectedSpec = $derived(qaState.selectedSpec);
   let selectedRun = $derived(qaState.selectedRun);
+  let selectedSuite = $derived(qaState.selectedSuite);
   let nlCreatorOpen = $derived(qaState.nlCreator.isOpen);
 
   // View mode tabs
   const tabs = [
     {id: 'specs', label: 'Test Specs', icon: 'file-code'},
+    {id: 'suites', label: 'Suites', icon: 'layers'},
     {id: 'runs', label: 'Test Runs', icon: 'play-circle'},
+    {id: 'triage', label: 'Triage', icon: 'alert', badge: true},
     {id: 'coverage', label: 'Coverage', icon: 'grid'},
     {id: 'docs', label: 'Architecture', icon: 'book'}
   ];
+
+  // Load suites and triage on mount
+  onMount(() => {
+    const checkSupabase = setInterval(() => {
+      if (supabaseHolder?.client) {
+        qaState.supabase = supabaseHolder.client;
+        qaState.loadSuites();
+        qaState.loadTriageSummary();
+        qaState.loadSchedules();
+        clearInterval(checkSupabase);
+      }
+    }, 50);
+    return () => clearInterval(checkSupabase);
+  });
 
   function handleNewSpec() {
     qaState.openNLCreator();
@@ -92,35 +104,11 @@
         </div>
       </div>
       <button class="btn-secondary" onclick={handleRunAll}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
+        <Play size={16} />
         Run All
       </button>
       <button class="btn-primary" onclick={handleNewSpec}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
+        <Plus size={16} />
         New Spec
       </button>
     {/snippet}
@@ -135,6 +123,9 @@
         onclick={() => qaState.setViewMode(tab.id)}
       >
         {tab.label}
+        {#if tab.badge && pendingTriage > 0}
+          <span class="tab-badge">{pendingTriage}</span>
+        {/if}
       </button>
     {/each}
   </div>
@@ -143,8 +134,12 @@
   <div class="qa-content">
     {#if viewMode === 'specs'}
       <QASpecList />
+    {:else if viewMode === 'suites'}
+      <QASuiteList />
     {:else if viewMode === 'runs'}
       <QARunList />
+    {:else if viewMode === 'triage'}
+      <QATriageView />
     {:else if viewMode === 'coverage'}
       <QADashboard />
     {:else if viewMode === 'docs'}
@@ -226,6 +221,10 @@
 
   .tab.active {
     @apply bg-base02 text-base06;
+  }
+
+  .tab-badge {
+    @apply ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-base08 text-white font-medium;
   }
 
   .qa-content {

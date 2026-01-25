@@ -35,13 +35,17 @@ export class QAReactiveState {
   // Core Data
   specs = $state([]);
   runs = $state([]);
+  suites = $state([]);
+  schedules = $state([]);
   dashboardSummary = $state(null);
+  triageSummary = $state(null);
 
   // UI State
   selectedSpec = $state(null);
   selectedRun = $state(null);
+  selectedSuite = $state(null);
   isLoading = $state(true);
-  viewMode = $state('specs'); // 'specs' | 'runs' | 'coverage'
+  viewMode = $state('specs'); // 'specs' | 'runs' | 'suites' | 'triage' | 'coverage'
 
   // Filters
   filters = $state({
@@ -78,7 +82,10 @@ export class QAReactiveState {
   constructor(initialData = {}) {
     this.specs = initialData.specs || [];
     this.runs = initialData.runs || [];
+    this.suites = initialData.suites || [];
+    this.schedules = initialData.schedules || [];
     this.dashboardSummary = initialData.dashboardSummary || null;
+    this.triageSummary = initialData.triageSummary || null;
     this.showToast = initialData.showToast || null;
     this.supabase = initialData.supabase || null;
     this.apiBaseUrl = initialData.apiBaseUrl || '';
@@ -650,6 +657,350 @@ export class QAReactiveState {
       this.runs = data || [];
     } catch (error) {
       console.error('Failed to refresh runs:', error);
+    }
+  }
+
+  // ============================================================================
+  // SUITES
+  // ============================================================================
+
+  get totalSuites() {
+    return this.suites.length;
+  }
+
+  get quarantinedSpecs() {
+    return this.triageSummary?.quarantined_specs || [];
+  }
+
+  get pendingTriageCount() {
+    return this.triageSummary?.stats?.pending_triage_count || 0;
+  }
+
+  async loadSuites() {
+    if (!this.supabase) return;
+
+    try {
+      const {data, error} = await this.supabase
+        .schema('internal')
+        .from('qa_test_suites')
+        .select('*')
+        .is('deleted_at', null)
+        .order('name');
+
+      if (error) throw error;
+      this.suites = data || [];
+    } catch (error) {
+      console.error('Failed to load suites:', error);
+    }
+  }
+
+  async createSuite(suiteData) {
+    const newSuite = {
+      name: suiteData.name,
+      description: suiteData.description || null,
+      suite_type: suiteData.suite_type || 'static',
+      spec_ids: suiteData.spec_ids || [],
+      filter_tags: suiteData.filter_tags || [],
+      filter_category: suiteData.filter_category || null,
+      filter_target_app: suiteData.filter_target_app || null,
+      parallel: suiteData.parallel || false,
+      fail_fast: suiteData.fail_fast || false,
+      tags: suiteData.tags || []
+    };
+
+    try {
+      if (this.supabase) {
+        const {data: inserted, error} = await this.supabase
+          .schema('internal')
+          .from('qa_test_suites')
+          .insert(newSuite)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.suites = [inserted, ...this.suites];
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Suite Created',
+            message: `"${inserted.name}" added`,
+            type: 'success',
+            duration: 3000
+          });
+        }
+
+        return inserted;
+      }
+    } catch (error) {
+      console.error('Failed to create suite:', error);
+      if (this.showToast) {
+        this.showToast({
+          title: 'Creation Failed',
+          message: error.message,
+          type: 'error',
+          duration: 5000
+        });
+      }
+      return null;
+    }
+  }
+
+  async runSuite(suiteId, environment = 'staging') {
+    try {
+      // Get auth token
+      let authHeaders = {'Content-Type': 'application/json'};
+      if (this.supabase) {
+        const {data: {session}} = await this.supabase.auth.getSession();
+        if (session?.access_token) {
+          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
+      // Call API to start suite run (triggers Temporal workflow)
+      const response = await fetch(`${this.apiBaseUrl}/api/qa/run-suite`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({suite_id: suiteId, environment})
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to start suite run');
+      }
+
+      const data = await response.json();
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Suite Run Started',
+          message: `Running on ${environment}`,
+          type: 'success',
+          duration: 3000
+        });
+      }
+
+      // Refresh runs
+      await this.refreshRuns();
+
+      return data;
+    } catch (error) {
+      console.error('Failed to run suite:', error);
+      if (this.showToast) {
+        this.showToast({
+          title: 'Run Failed',
+          message: error.message,
+          type: 'error',
+          duration: 5000
+        });
+      }
+      return null;
+    }
+  }
+
+  selectSuite(suite) {
+    this.selectedSuite = suite;
+  }
+
+  closeSuite() {
+    this.selectedSuite = null;
+  }
+
+  // ============================================================================
+  // TRIAGE
+  // ============================================================================
+
+  async loadTriageSummary() {
+    if (!this.supabase) return;
+
+    try {
+      const {data, error} = await this.supabase.rpc('qa_get_triage_summary');
+      if (error) throw error;
+      this.triageSummary = data;
+    } catch (error) {
+      console.error('Failed to load triage summary:', error);
+    }
+  }
+
+  async triageRun(runId, status, notes = null) {
+    try {
+      if (this.supabase) {
+        const {data: {user}} = await this.supabase.auth.getUser();
+
+        const {error} = await this.supabase.rpc('qa_triage_run', {
+          p_run_id: runId,
+          p_status: status,
+          p_notes: notes,
+          p_triaged_by: user?.id
+        });
+
+        if (error) throw error;
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Run Triaged',
+            message: `Marked as ${status}`,
+            type: 'success',
+            duration: 3000
+          });
+        }
+
+        // Refresh triage summary
+        await this.loadTriageSummary();
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to triage run:', error);
+      if (this.showToast) {
+        this.showToast({
+          title: 'Triage Failed',
+          message: error.message,
+          type: 'error',
+          duration: 5000
+        });
+      }
+      return false;
+    }
+  }
+
+  async quarantineSpec(specId, reason) {
+    try {
+      if (this.supabase) {
+        const {error} = await this.supabase.rpc('qa_quarantine_spec', {
+          p_spec_id: specId,
+          p_reason: reason,
+          p_expires_in_days: 7
+        });
+
+        if (error) throw error;
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Spec Quarantined',
+            message: 'Test will be skipped in suite runs',
+            type: 'warning',
+            duration: 3000
+          });
+        }
+
+        await this.refreshSpecs();
+        await this.loadTriageSummary();
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to quarantine spec:', error);
+      return false;
+    }
+  }
+
+  async unquarantineSpec(specId) {
+    try {
+      if (this.supabase) {
+        const {error} = await this.supabase.rpc('qa_unquarantine_spec', {
+          p_spec_id: specId
+        });
+
+        if (error) throw error;
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Spec Unquarantined',
+            message: 'Test will now run in suite runs',
+            type: 'success',
+            duration: 3000
+          });
+        }
+
+        await this.refreshSpecs();
+        await this.loadTriageSummary();
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to unquarantine spec:', error);
+      return false;
+    }
+  }
+
+  // ============================================================================
+  // SCHEDULES
+  // ============================================================================
+
+  async loadSchedules() {
+    if (!this.supabase) return;
+
+    try {
+      const {data, error} = await this.supabase
+        .schema('internal')
+        .from('qa_schedules')
+        .select('*, suite:qa_test_suites(name)')
+        .order('next_run_at');
+
+      if (error) throw error;
+      this.schedules = data || [];
+    } catch (error) {
+      console.error('Failed to load schedules:', error);
+    }
+  }
+
+  async createSchedule(scheduleData) {
+    try {
+      if (this.supabase) {
+        const {data: inserted, error} = await this.supabase
+          .schema('internal')
+          .from('qa_schedules')
+          .insert(scheduleData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.schedules = [inserted, ...this.schedules];
+
+        if (this.showToast) {
+          this.showToast({
+            title: 'Schedule Created',
+            message: `"${inserted.name}" scheduled`,
+            type: 'success',
+            duration: 3000
+          });
+        }
+
+        return inserted;
+      }
+    } catch (error) {
+      console.error('Failed to create schedule:', error);
+      if (this.showToast) {
+        this.showToast({
+          title: 'Creation Failed',
+          message: error.message,
+          type: 'error',
+          duration: 5000
+        });
+      }
+      return null;
+    }
+  }
+
+  async toggleSchedule(scheduleId, enabled) {
+    try {
+      if (this.supabase) {
+        const {error} = await this.supabase
+          .schema('internal')
+          .from('qa_schedules')
+          .update({enabled})
+          .eq('id', scheduleId);
+
+        if (error) throw error;
+
+        this.schedules = this.schedules.map(s =>
+          s.id === scheduleId ? {...s, enabled} : s
+        );
+
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to toggle schedule:', error);
+      return false;
     }
   }
 
