@@ -5,6 +5,7 @@
    * Features:
    * - Workflow list with smart grouping
    * - Quick actions for common workflows
+   * - Available workflow types registry
    * - Real-time progress updates
    * - AI-powered search
    * - Workflow actions (cancel, terminate)
@@ -26,7 +27,15 @@
     XCircle,
     Loader2,
     MoreVertical,
-    Pause
+    Pause,
+    Package,
+    HeartPulse,
+    FileText,
+    TestTube2,
+    Users,
+    GitBranch,
+    Boxes,
+    Cpu
   } from '@lucide/svelte';
   import {Button} from '@miozu/jera';
   import WorkflowTimeline from './WorkflowTimeline.svelte';
@@ -34,6 +43,74 @@
   import QuickActions from './QuickActions.svelte';
 
   let {data} = $props();
+
+  // Available workflow types registry
+  const workflowTypes = [
+    {
+      id: 'PackageCascadeWorkflow',
+      name: 'Package Cascade',
+      description: 'Update a package across all consuming repos',
+      icon: Package,
+      queue: 'internal-ops-queue',
+      category: 'internal'
+    },
+    {
+      id: 'HealthCheckWorkflow',
+      name: 'Health Check',
+      description: 'Run health checks on all services',
+      icon: HeartPulse,
+      queue: 'internal-ops-queue',
+      category: 'internal'
+    },
+    {
+      id: 'DocumentationWorkflow',
+      name: 'Documentation',
+      description: 'Regenerate API and database documentation',
+      icon: FileText,
+      queue: 'internal-ops-queue',
+      category: 'internal'
+    },
+    {
+      id: 'QASchedulerWorkflow',
+      name: 'QA Scheduler',
+      description: 'Manage scheduled QA test runs',
+      icon: TestTube2,
+      queue: 'internal-ops-queue',
+      category: 'qa'
+    },
+    {
+      id: 'QATestRunWorkflow',
+      name: 'QA Test Run',
+      description: 'Execute Playwright test suite',
+      icon: TestTube2,
+      queue: 'internal-ops-queue',
+      category: 'qa'
+    },
+    {
+      id: 'TeamOnboardingWorkflow',
+      name: 'Team Onboarding',
+      description: 'Onboard new team members',
+      icon: Users,
+      queue: 'internal-ops-queue',
+      category: 'internal'
+    },
+    {
+      id: 'GitPushWorkflow',
+      name: 'Git Push',
+      description: 'Handle git push events with analysis',
+      icon: GitBranch,
+      queue: 'agent-platform',
+      category: 'ci'
+    },
+    {
+      id: 'ProductGenerationWorkflow',
+      name: 'Product Generation',
+      description: 'AI product catalog generation',
+      icon: Boxes,
+      queue: 'agent-platform',
+      category: 'ai'
+    }
+  ];
 
   const temporalState = getContext('temporalState');
   const toastState = getContext('toastState');
@@ -90,7 +167,6 @@
   }
 
   // UI State
-  let showQuickActions = $state(false);
   let showFilters = $state(false);
   let selectedWorkflowId = $state(null);
 
@@ -144,6 +220,23 @@
     completed24h: temporalState?.insights?.stats?.completed || 0,
     failed24h: temporalState?.insights?.stats?.failed || 0,
     total: temporalState?.workflowsTotal || 0
+  });
+
+  // Workflow type stats
+  let workflowTypeStats = $derived.by(() => {
+    const workflows = temporalState?.workflows || [];
+    const stats = {};
+
+    for (const wt of workflowTypes) {
+      const typeWorkflows = workflows.filter((w) => w.workflow_type === wt.id);
+      const running = typeWorkflows.filter((w) => w.status === 'RUNNING').length;
+      const completed = typeWorkflows.filter((w) => w.status === 'COMPLETED').length;
+      const failed = typeWorkflows.filter((w) => w.status === 'FAILED' || w.status === 'TERMINATED').length;
+      const lastRun = typeWorkflows[0]?.start_time || null;
+
+      stats[wt.id] = {running, completed, failed, total: typeWorkflows.length, lastRun};
+    }
+    return stats;
   });
 
   // Status helpers
@@ -209,28 +302,12 @@
       </div>
 
       <div class="header-actions">
-        <Button
-          variant={showQuickActions ? 'primary' : 'ghost'}
-          size="sm"
-          onclick={() => (showQuickActions = !showQuickActions)}
-        >
-          <Play size={14} />
-          Quick Actions
-          {#if showQuickActions}<ChevronUp size={14} />{:else}<ChevronDown size={14} />{/if}
-        </Button>
         <Button variant="ghost" size="sm" onclick={refreshData} disabled={temporalState?.isLoading}>
           <RefreshCw size={14} class={temporalState?.isLoading ? 'animate-spin' : ''} />
           Refresh
         </Button>
       </div>
     </div>
-
-    <!-- Quick Actions Panel (collapsible) -->
-    {#if showQuickActions}
-      <div class="quick-actions-wrapper">
-        <QuickActions />
-      </div>
-    {/if}
 
     <!-- Stats Row -->
     <div class="stats-row">
@@ -311,7 +388,46 @@
 
   <!-- Main Content -->
   <div class="dashboard-content" class:has-detail={selectedWorkflowId}>
-    <!-- Workflow List -->
+    <!-- Left Column: Workflow Types + Quick Actions -->
+    <aside class="sidebar-panel">
+      <!-- Quick Actions (inline, no toggle) -->
+      <div class="panel-section">
+        <QuickActions />
+      </div>
+
+      <!-- Workflow Types Registry -->
+      <div class="panel-section">
+        <h3 class="panel-title">
+          <Cpu size={14} />
+          Registered Workflows
+        </h3>
+        <div class="workflow-types-list">
+          {#each workflowTypes as wt}
+            {@const stats = workflowTypeStats[wt.id]}
+            <div class="workflow-type-item">
+              <div class="wt-icon" style="--wt-color: var(--color-base0D)">
+                <svelte:component this={wt.icon} size={16} />
+              </div>
+              <div class="wt-info">
+                <span class="wt-name">{wt.name}</span>
+                <span class="wt-queue">{wt.queue}</span>
+              </div>
+              <div class="wt-stats">
+                {#if stats?.running > 0}
+                  <span class="wt-stat running">{stats.running}</span>
+                {:else if stats?.total > 0}
+                  <span class="wt-stat muted">{stats.total}</span>
+                {:else}
+                  <span class="wt-stat muted">-</span>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Column: Workflow List -->
     <div class="workflows-list">
       {#if temporalState?.isLoading || temporalState?.isSearching}
         <div class="loading-state">
@@ -501,12 +617,6 @@
     @apply flex items-center gap-2;
   }
 
-  /* Quick Actions */
-  .quick-actions-wrapper {
-    @apply rounded-lg overflow-hidden;
-    background: var(--color-base01);
-  }
-
   /* Stats */
   .stats-row {
     @apply flex gap-6;
@@ -623,16 +733,93 @@
     background: var(--color-base02);
   }
 
-  /* Main Content */
+  /* Main Content - Three Column Layout */
   .dashboard-content {
     @apply flex-1 overflow-hidden;
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: 320px 1fr;
+    gap: 1.5rem;
   }
 
   .dashboard-content.has-detail {
-    grid-template-columns: 1fr 420px;
+    grid-template-columns: 320px 1fr 420px;
+  }
+
+  /* Sidebar Panel */
+  .sidebar-panel {
+    @apply flex flex-col gap-4 overflow-y-auto pr-2;
+    max-height: calc(100vh - 340px);
+  }
+
+  .panel-section {
+    @apply rounded-lg overflow-hidden;
+    background: var(--color-base01);
+    border: 1px solid var(--color-base02);
+  }
+
+  .panel-title {
+    @apply flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wide border-b;
+    border-color: var(--color-base02);
+    color: var(--color-base04);
+  }
+
+  /* Workflow Types List */
+  .workflow-types-list {
+    @apply divide-y;
+    divide-color: var(--color-base02);
+  }
+
+  .workflow-type-item {
+    @apply flex items-center gap-3 px-4 py-2.5;
+  }
+
+  .workflow-type-item:hover {
+    background: var(--color-base02);
+  }
+
+  .wt-icon {
+    @apply w-8 h-8 flex items-center justify-center rounded-md flex-shrink-0;
+    background: color-mix(in srgb, var(--wt-color, var(--color-base0D)) 15%, transparent);
+    color: var(--wt-color, var(--color-base0D));
+  }
+
+  .wt-info {
+    @apply flex-1 min-w-0;
+  }
+
+  .wt-name {
+    @apply block text-sm font-medium truncate;
+    color: var(--color-base06);
+  }
+
+  .wt-queue {
+    @apply block text-xs truncate;
+    color: var(--color-base04);
+  }
+
+  .wt-stats {
+    @apply flex-shrink-0;
+  }
+
+  .wt-stat {
+    @apply text-xs font-medium px-2 py-0.5 rounded;
+    background: var(--color-base02);
+    color: var(--color-base05);
+  }
+
+  .wt-stat.running {
+    background: color-mix(in srgb, var(--color-base0D) 20%, transparent);
+    color: var(--color-base0D);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .wt-stat.muted {
+    color: var(--color-base04);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   /* Workflow List */
@@ -774,14 +961,28 @@
   }
 
   /* Responsive */
-  @media (max-width: 1024px) {
+  @media (max-width: 1280px) {
+    .dashboard-content {
+      grid-template-columns: 280px 1fr;
+    }
+
     .dashboard-content.has-detail {
-      grid-template-columns: 1fr;
+      grid-template-columns: 280px 1fr;
     }
 
     .detail-panel {
       @apply fixed inset-y-0 right-0 w-full max-w-md z-50;
       box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .dashboard-content {
+      grid-template-columns: 1fr;
+    }
+
+    .sidebar-panel {
+      @apply hidden;
     }
 
     .workflow-cards {
