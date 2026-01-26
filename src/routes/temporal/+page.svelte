@@ -11,10 +11,11 @@
    */
 
   import {getContext, onMount, onDestroy} from 'svelte';
-  import {Search, RefreshCw, Activity, AlertTriangle, Check, X, Clock, Filter, Zap} from '@lucide/svelte';
+  import {Search, RefreshCw, Activity, AlertTriangle, Check, X, Clock, Filter, Zap, Play, ChevronLeft, ChevronRight} from '@lucide/svelte';
   import WorkflowList from './WorkflowList.svelte';
   import WorkflowTimeline from './WorkflowTimeline.svelte';
   import AIInsightsPanel from './AIInsightsPanel.svelte';
+  import QuickActions from './QuickActions.svelte';
 
   let {data} = $props();
 
@@ -30,8 +31,8 @@
       temporalState.insights = data.insights || {anomalies: [], suggestions: [], stats: {}};
       temporalState.health = data.health || {status: 'unknown', temporal_connected: false};
 
-      // Connect to SSE for real-time updates
-      temporalState.connectToActiveStream();
+      // Connect to real-time updates
+      temporalState.connectToRealtimeWorkflows();
 
       // Hide the floating tracker since we're on the dashboard
       temporalState.trackerVisible = false;
@@ -68,7 +69,7 @@
     searchDebounce = setTimeout(() => {
       if (query.trim()) {
         temporalState?.searchWorkflows(query);
-      } else {
+      } else if (temporalState) {
         temporalState.searchResults = [];
         temporalState.searchQuery = '';
       }
@@ -123,6 +124,9 @@
 
   // Filter state
   let showFilters = $state(false);
+
+  // Quick Actions panel state
+  let showQuickActions = $state(true);
 </script>
 
 <div class="page-flex">
@@ -147,6 +151,15 @@
           <Filter size={16} />
           Filters
         </button>
+        <button class="btn-ghost" onclick={() => (showQuickActions = !showQuickActions)}>
+          <Play size={16} />
+          Quick Actions
+          {#if showQuickActions}
+            <ChevronRight size={14} />
+          {:else}
+            <ChevronLeft size={14} />
+          {/if}
+        </button>
         <button class="btn-ghost" onclick={refreshData} disabled={temporalState?.isLoading}>
           <RefreshCw size={16} class={temporalState?.isLoading ? 'animate-spin' : ''} />
           Refresh
@@ -166,7 +179,7 @@
           oninput={handleSearch}
         />
         {#if searchInput}
-          <button class="search-clear" onclick={clearSearch}>
+          <button class="search-clear" onclick={clearSearch} aria-label="Clear search">
             <X size={14} />
           </button>
         {/if}
@@ -202,6 +215,11 @@
           <option value="TeamOnboardingWorkflow">Team Onboarding</option>
           <option value="HealthCheckWorkflow">Health Check</option>
           <option value="CatalogIngestionWorkflow">Catalog Ingestion</option>
+          <option value="PackageCascadeWorkflow">Package Cascade</option>
+          <option value="DocumentationWorkflow">Documentation</option>
+          <option value="QASchedulerWorkflow">QA Scheduler</option>
+          <option value="QATestRunWorkflow">QA Test Run</option>
+          <option value="GitPushWorkflow">Git Push</option>
         </select>
 
         <select
@@ -246,7 +264,7 @@
   </div>
 
   <!-- Main Content -->
-  <div class="dashboard-grid">
+  <div class="dashboard-grid" class:with-actions={showQuickActions}>
     <!-- Workflow List -->
     <div class="workflows-panel">
       <WorkflowList
@@ -274,6 +292,13 @@
         </div>
       {/if}
     </div>
+
+    <!-- Quick Actions Panel -->
+    {#if showQuickActions}
+      <div class="actions-panel">
+        <QuickActions />
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -416,6 +441,10 @@
     grid-template-columns: 1fr 400px;
   }
 
+  .dashboard-grid.with-actions {
+    grid-template-columns: 1fr 400px 320px;
+  }
+
   .workflows-panel {
     @apply min-h-0 overflow-hidden rounded-lg;
     background: var(--color-base01);
@@ -424,6 +453,10 @@
   .detail-panel {
     @apply min-h-0 overflow-hidden rounded-lg;
     background: var(--color-base01);
+  }
+
+  .actions-panel {
+    @apply min-h-0 overflow-hidden;
   }
 
   .empty-detail {
@@ -436,13 +469,44 @@
   }
 
   /* Responsive */
+  @media (max-width: 1280px) {
+    .dashboard-grid.with-actions {
+      grid-template-columns: 1fr 320px;
+      grid-template-rows: auto auto;
+    }
+
+    .dashboard-grid.with-actions .workflows-panel {
+      grid-column: 1 / -1;
+      max-height: 400px;
+    }
+
+    .dashboard-grid.with-actions .detail-panel {
+      grid-column: 1;
+    }
+
+    .dashboard-grid.with-actions .actions-panel {
+      grid-column: 2;
+    }
+  }
+
   @media (max-width: 1024px) {
     .dashboard-grid {
       grid-template-columns: 1fr;
     }
 
+    .dashboard-grid.with-actions {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
+    }
+
     .detail-panel {
       @apply max-h-[400px];
+    }
+
+    .dashboard-grid.with-actions .workflows-panel,
+    .dashboard-grid.with-actions .detail-panel,
+    .dashboard-grid.with-actions .actions-panel {
+      grid-column: 1;
     }
   }
 </style>

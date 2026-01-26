@@ -430,6 +430,61 @@ export class TemporalReactiveState {
     }
   }
 
+  /**
+   * Start a new workflow from the admin dashboard.
+   *
+   * @param {string} workflowType - The workflow type name (e.g., 'HealthCheckWorkflow')
+   * @param {string} taskQueue - The task queue (e.g., 'internal-ops-queue')
+   * @param {object} input - The workflow input parameters
+   * @returns {Promise<{workflow_id: string, workflow_type: string, task_queue: string}|null>}
+   */
+  async startWorkflow(workflowType, taskQueue, input = {}) {
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/api/temporal/start`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({
+          workflowType,
+          taskQueue,
+          input
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to start workflow: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // Refresh workflow list to show the new workflow
+      await this.fetchWorkflows();
+
+      if (this.showToast) {
+        this.showToast({
+          title: 'Workflow Started',
+          message: `Started ${workflowType.replace('Workflow', '')}`,
+          type: 'success',
+          duration: 3000
+        });
+      }
+
+      return result;
+    } catch (err) {
+      console.error('Failed to start workflow:', err);
+      if (this.showToast) {
+        this.showToast({
+          title: 'Error',
+          message: err.message || 'Failed to start workflow',
+          type: 'error',
+          duration: 5000
+        });
+      }
+      return null;
+    }
+  }
+
   // =============================================
   // API Methods - Search & Insights
   // =============================================
@@ -648,14 +703,21 @@ export class TemporalReactiveState {
   // Rate Limiting Management
   // =============================================
 
+  // Legacy polling stubs (polling replaced by real-time subscriptions)
+  startPolling() {
+    // No-op: polling replaced by real-time subscriptions
+    console.log('[Temporal] startPolling called but polling is disabled - using real-time subscriptions');
+  }
+
+  stopPolling() {
+    // No-op: polling replaced by real-time subscriptions
+  }
+
   handleRateLimit() {
     if (this.isRateLimited) return; // Already handling rate limit
 
     this.isRateLimited = true;
     console.log(`[Temporal] Rate limited, backing off for ${this.rateLimitBackoffMs}ms`);
-
-    // Stop polling temporarily
-    this.stopPolling();
 
     // Clear any existing timeout
     if (this.rateLimitTimeout) {
@@ -665,10 +727,7 @@ export class TemporalReactiveState {
     // Set timeout to retry with exponential backoff
     this.rateLimitTimeout = setTimeout(() => {
       this.isRateLimited = false;
-      console.log('[Temporal] Rate limit backoff complete, resuming polling');
-
-      // Resume polling with slower interval initially
-      this.startPolling();
+      console.log('[Temporal] Rate limit backoff complete, resuming');
 
       // Exponential backoff (double the delay, up to max)
       this.rateLimitBackoffMs = Math.min(this.rateLimitBackoffMs * 2, this.maxBackoffMs);
@@ -691,12 +750,10 @@ export class TemporalReactiveState {
       console.log(`[Temporal] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
       setTimeout(() => {
-        this.connectToActiveStream();
+        this.connectToRealtimeWorkflows();
       }, delay);
     } else {
       console.error('[Temporal] Max reconnect attempts reached');
-      // Fall back to polling only
-      this.startPolling();
     }
   }
 
